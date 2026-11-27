@@ -73,6 +73,36 @@ const OUTER_RING_RADIUS = 161.5;
 const INNER_CIRCLE_SIZE = 94;
 const INNER_RING_RADIUS = 69;
 
+const SELECTED_EMOTION_STYLES: Record<
+  RulerQuadrant,
+  { fill: string; border: string; glow: string; ink: string }
+> = {
+  yellow: {
+    fill: '#EAC463',
+    border: '#F5DA8D',
+    glow: '#EAC463',
+    ink: '#1A1508',
+  },
+  green: {
+    fill: '#7BD7A8',
+    border: '#A7E8C6',
+    glow: '#7BD7A8',
+    ink: '#0C1C14',
+  },
+  blue: {
+    fill: '#7FB3E3',
+    border: '#ABD0F1',
+    glow: '#7FB3E3',
+    ink: '#0D1924',
+  },
+  red: {
+    fill: '#EA9586',
+    border: '#F5B8AD',
+    glow: '#EA9586',
+    ink: '#22100D',
+  },
+};
+
 function getCirclePosition(angleDeg: number, ringRadius: number, size: number) {
   const rad = ((angleDeg - 90) * Math.PI) / 180;
   const cx = CENTER + ringRadius * Math.cos(rad);
@@ -298,6 +328,7 @@ export const RulerGridTile: React.FC<RulerGridTileProps> = ({
       {/* 16 Enlarged Circular Emotion Buttons (12 Outer 80px + 4 Inner 94px filling the center space) */}
       {RULER_EMOTIONS_16.map((item) => {
         const theme = RULER_THEMES[item.quadrant];
+        const selectedStyle = SELECTED_EMOTION_STYLES[item.quadrant];
         const Icon = EMOTION_ICONS[item.icon];
         const isInner = item.ring === 'inner';
         const circleSize = isInner ? INNER_CIRCLE_SIZE : OUTER_CIRCLE_SIZE;
@@ -306,6 +337,7 @@ export const RulerGridTile: React.FC<RulerGridTileProps> = ({
         const isSelected = selectedEmotion === item.emotion;
         const isDimmed = Boolean(selectedEmotion && !isSelected);
         const isRecent = !selectedEmotion && latestEmotion === item.emotion;
+        const isActive = isSelected || isRecent;
 
         return (
           <motion.button
@@ -319,22 +351,24 @@ export const RulerGridTile: React.FC<RulerGridTileProps> = ({
               })
             }
             animate={{
-              scale: isSelected ? 1.14 : isDimmed ? 0.94 : 1,
+              scale: isSelected ? 1.09 : isDimmed ? 0.94 : 1,
               opacity: isDimmed ? 0.44 : 1,
-              borderColor: isSelected
-                ? theme.accent
-                : isRecent
-                ? `${theme.accent}CC`
-                : theme.border,
+              borderColor: isActive ? selectedStyle.border : theme.border,
               boxShadow: isSelected
-                ? `0 0 26px ${theme.accent}EE, 0 0 54px ${theme.accent}8C, inset 0 0 20px ${theme.accent}75`
+                ? `0 0 8px ${selectedStyle.glow}E0, 0 0 18px ${selectedStyle.glow}A6, 0 0 30px ${selectedStyle.glow}52`
                 : isRecent
-                ? `0 0 16px ${theme.accent}66, 0 0 28px ${theme.accent}2E, inset 0 0 12px ${theme.accent}2B`
+                ? `0 0 6px ${selectedStyle.glow}BA, 0 0 15px ${selectedStyle.glow}80, 0 0 26px ${selectedStyle.glow}3D`
                 : 'inset 0 1px 0 rgba(255,255,255,0.06)',
             }}
             whileHover={
               selectedEmotion
                 ? undefined
+                : isRecent
+                ? {
+                    scale: 1.06,
+                    borderColor: selectedStyle.border,
+                    boxShadow: `0 0 8px ${selectedStyle.glow}D4, 0 0 18px ${selectedStyle.glow}99, 0 0 28px ${selectedStyle.glow}4A`,
+                  }
                 : {
                     scale: 1.07,
                     borderColor: theme.accent,
@@ -343,8 +377,8 @@ export const RulerGridTile: React.FC<RulerGridTileProps> = ({
             }
             whileTap={{
               scale: 0.94,
-              borderColor: theme.accent,
-              boxShadow: `0 0 24px ${theme.accent}CC, inset 0 0 18px ${theme.accent}66`,
+              borderColor: selectedStyle.border,
+              boxShadow: `0 0 8px ${selectedStyle.glow}D9, 0 0 18px ${selectedStyle.glow}99, 0 0 28px ${selectedStyle.glow}4A`,
             }}
             transition={m3Springs.fastSpatial}
             style={{
@@ -353,12 +387,10 @@ export const RulerGridTile: React.FC<RulerGridTileProps> = ({
               width: `${circleSize}px`,
               height: `${circleSize}px`,
               zIndex: isSelected ? 30 : isRecent ? 12 : 1,
-              background: isSelected
-                ? `radial-gradient(circle at 50% 35%, ${theme.accent}68 0%, ${theme.surface} 74%)`
-                : isRecent
-                ? `radial-gradient(circle at 50% 35%, ${theme.accent}2B 0%, ${theme.surface} 76%, #1C201F 145%)`
+              background: isActive
+                ? selectedStyle.fill
                 : `linear-gradient(155deg, ${theme.surface} 0%, #1C201F 145%)`,
-              color: isSelected ? '#FFFFFF' : theme.accent,
+              color: isActive ? selectedStyle.ink : theme.accent,
             }}
             className="group absolute flex flex-col items-center justify-center gap-[5px] rounded-full border px-1.5 text-center hover:z-20 focus-visible:z-20 focus-visible:outline-none"
           >
@@ -368,11 +400,11 @@ export const RulerGridTile: React.FC<RulerGridTileProps> = ({
                 aria-hidden="true"
                 className="pointer-events-none absolute -inset-1 rounded-full border-2"
                 style={{
-                  borderColor: theme.accent,
-                  boxShadow: `0 0 20px ${theme.accent}`,
+                  borderColor: selectedStyle.border,
+                  boxShadow: `0 0 16px ${selectedStyle.glow}`,
                 }}
-                initial={{ scale: 0.9, opacity: 0.95 }}
-                animate={{ scale: 1.48, opacity: 0 }}
+                initial={{ scale: 0.92, opacity: 0.9 }}
+                animate={{ scale: 1.28, opacity: 0 }}
                 transition={{ duration: 0.34, ease: [0.16, 1, 0.3, 1] }}
               />
             )}
@@ -390,7 +422,6 @@ export const RulerGridTile: React.FC<RulerGridTileProps> = ({
                   ? 'relative z-10 max-w-full truncate text-[11.5px] font-semibold leading-none tracking-[-0.015em]'
                   : 'relative z-10 max-w-full truncate text-[10.5px] font-semibold leading-none tracking-[-0.015em]'
               }
-              style={isSelected ? { textShadow: `0 0 12px ${theme.accent}` } : undefined}
             >
               {item.emotion}
             </span>

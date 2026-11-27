@@ -2,6 +2,11 @@ import React, { useMemo } from 'react';
 import { Download, FileJson, FileSpreadsheet, FileText, Printer, X } from 'lucide-react';
 import { RULER_THEMES, RulerQuadrant, WellbeState } from '../../types';
 import { computeAnalyticsSummary } from '../../utils/coachEngine';
+import {
+  ExpressiveButton,
+  ExpressiveIconButton,
+  ExpressiveSegmentButton,
+} from '../watch/ExpressiveControls';
 
 interface TherapistSummaryModalProps {
   open: boolean;
@@ -51,65 +56,69 @@ export const TherapistSummaryModal: React.FC<TherapistSummaryModalProps> = ({
         <div className="no-print sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50/95 px-6 py-3.5 backdrop-blur">
           <div className="flex items-center gap-3">
             <span className="text-sm font-bold text-slate-900">One-Page Therapist Summary</span>
-            <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5">
+            <div className="inline-flex gap-0.5 rounded-full border border-slate-200 bg-white p-0.5">
               {([7, 30] as const).map((d) => (
-                <button
+                <ExpressiveSegmentButton
                   key={d}
-                  type="button"
+                  tone="light"
+                  selected={rangeDays === d}
+                  selectedRadius="9px"
+                  idleRadius="999px"
+                  className="px-3 py-1 text-xs"
                   onClick={() => onChangeRange(d)}
-                  className={`rounded-md px-3 py-1 text-xs font-semibold transition-colors ${
-                    rangeDays === d
-                      ? 'bg-slate-900 text-white'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
                 >
                   {`${d}-Day`}
-                </button>
+                </ExpressiveSegmentButton>
               ))}
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
+            <ExpressiveButton
+              tone="light"
+              variant="outlined"
+              size="sm"
+              leadingIcon={<FileJson className="h-3.5 w-3.5" />}
               onClick={onExportJSON}
-              className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100"
             >
-              <FileJson className="h-3.5 w-3.5" />
-              <span>.json</span>
-            </button>
-            <button
-              type="button"
+              .json
+            </ExpressiveButton>
+            <ExpressiveButton
+              tone="light"
+              variant="outlined"
+              size="sm"
+              leadingIcon={<FileSpreadsheet className="h-3.5 w-3.5" />}
               onClick={onExportCSV}
-              className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100"
             >
-              <FileSpreadsheet className="h-3.5 w-3.5" />
-              <span>.csv</span>
-            </button>
-            <button
-              type="button"
+              .csv
+            </ExpressiveButton>
+            <ExpressiveButton
+              tone="light"
+              variant="outlined"
+              size="sm"
+              leadingIcon={<FileText className="h-3.5 w-3.5" />}
               onClick={() => onExportMarkdown(rangeDays)}
-              className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100"
             >
-              <FileText className="h-3.5 w-3.5" />
-              <span>.md</span>
-            </button>
-            <button
-              type="button"
+              .md
+            </ExpressiveButton>
+            <ExpressiveButton
+              tone="light"
+              variant="filled"
+              size="sm"
+              leadingIcon={<Printer className="h-3.5 w-3.5" />}
               onClick={() => window.print()}
-              className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
             >
-              <Printer className="h-3.5 w-3.5" />
-              <span>Print Sheet</span>
-            </button>
-            <button
-              type="button"
+              Print Sheet
+            </ExpressiveButton>
+            <ExpressiveIconButton
+              tone="light"
+              variant="outlined"
+              size={32}
+              ariaLabel="Close summary modal"
               onClick={onClose}
-              aria-label="Close summary modal"
-              className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-slate-900"
             >
               <X className="h-4 w-4" />
-            </button>
+            </ExpressiveIconButton>
           </div>
         </div>
 

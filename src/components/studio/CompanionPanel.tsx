@@ -6,6 +6,7 @@ import {
   FileText,
   Moon,
   Play,
+  RefreshCw,
   RotateCcw,
   Sun,
   Vibrate,
@@ -13,6 +14,7 @@ import {
   VolumeX,
   Watch,
   X,
+  Zap,
 } from 'lucide-react';
 import {
   AnchorVoicePreset,
@@ -22,6 +24,13 @@ import {
   TileId,
   WatchCaseFinish,
 } from '../../types';
+import { ExpressiveMorphLoader } from '../watch/ExpressiveLoaders';
+import {
+  ExpressiveButton,
+  ExpressiveChip,
+  ExpressiveIconButton,
+  ExpressiveSegmentButton,
+} from '../watch/ExpressiveControls';
 import { previewAnchorVoice, setAnchorVoicePreset } from '../../utils/audioHaptics';
 
 interface CompanionPanelProps {
@@ -33,9 +42,16 @@ interface CompanionPanelProps {
   settings: AppSettings;
   exportFlashSeq: number;
   onUpdateBiometrics: (
-    patch: Partial<Pick<LiveBiometrics, 'hr' | 'hrv' | 'sleepHours' | 'cedaLevel'>>
+    patch: Partial<
+      Pick<
+        LiveBiometrics,
+        'hr' | 'hrv' | 'sleepHours' | 'cedaLevel' | 'batteryLevel' | 'isCharging'
+      >
+    >
   ) => void;
   onTriggerStressSpike: () => void;
+  onSyncWatch: () => void;
+  isSyncing: boolean;
   onUpdateSettings: (patch: Partial<AppSettings>) => void;
   onOpenTherapistModal: () => void;
   onExportJSON: () => void;
@@ -56,7 +72,7 @@ const ANCHOR_VOICE_PRESETS: { id: AnchorVoicePreset; label: string }[] = [
   { id: 'grounded', label: 'Grounded' },
 ];
 
-export const CompanionPanel: React.FC<CompanionPanelProps> = ({
+export const CompanionPanel: React.FC<CompanionPanelProps> = React.memo(({
   open,
   onClose,
   activeTile,
@@ -66,6 +82,8 @@ export const CompanionPanel: React.FC<CompanionPanelProps> = ({
   exportFlashSeq,
   onUpdateBiometrics,
   onTriggerStressSpike,
+  onSyncWatch,
+  isSyncing,
   onUpdateSettings,
   onOpenTherapistModal,
   onExportJSON,
@@ -88,24 +106,43 @@ export const CompanionPanel: React.FC<CompanionPanelProps> = ({
           <h2 className="text-sm font-bold text-[#F5F4F2]">Companion Studio</h2>
           <p className="text-xs text-[#A8A4A4]">Pixel Watch 3 · Telemetry &amp; Export</p>
         </div>
-        <button
-          type="button"
+        <ExpressiveIconButton
+          variant="outlined"
+          size={32}
+          ariaLabel="Collapse Companion Studio Panel"
           onClick={onClose}
-          aria-label="Collapse Companion Studio Panel"
-          className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/12 bg-[#252222] text-[#A8A4A4] hover:bg-[#312E2E] hover:text-white"
         >
           <X className="h-4 w-4" />
-        </button>
+        </ExpressiveIconButton>
       </div>
 
       <div className="no-scrollbar mt-4 space-y-5 min-[920px]:min-h-0 min-[920px]:flex-1 min-[920px]:overflow-y-auto min-[920px]:overscroll-contain">
         {/* 1. Pixel Watch Telemetry Simulator */}
         <section className="space-y-3">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <h3 className="text-xs font-semibold text-[#E5E9E7]">Telemetry Simulator</h3>
-            <span className="font-mono text-[11px] text-[#63D4A3] tabular-nums">
-              Readiness {biometrics.readiness}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-[11px] text-[#63D4A3] tabular-nums">
+                Readiness {biometrics.readiness}
+              </span>
+              <ExpressiveButton
+                variant="tonal"
+                size="xs"
+                surfaceColor="#152920"
+                accentColor="#63D4A3"
+                borderColor="rgba(99, 212, 163, 0.45)"
+                leadingIcon={
+                  isSyncing ? (
+                    <ExpressiveMorphLoader size={16} label="Syncing watch" />
+                  ) : (
+                    <RefreshCw className="h-3 w-3" />
+                  )
+                }
+                onClick={onSyncWatch}
+              >
+                {isSyncing ? 'Syncing' : 'Sync'}
+              </ExpressiveButton>
+            </div>
           </div>
 
           {/* Heart Rate */}
@@ -166,40 +203,96 @@ export const CompanionPanel: React.FC<CompanionPanelProps> = ({
           {/* cEDA Body Response Segmented Control */}
           <div>
             <p className="mb-1.5 text-xs text-[#9CA3A0]">cEDA Body Response</p>
-            <div className="grid grid-cols-3 gap-1 rounded-lg border border-[#2B312F] bg-[#121514] p-1">
+            <div className="grid grid-cols-3 gap-1 rounded-full border border-[#2B312F] bg-[#121514] p-1">
               {(['calm', 'moderate', 'elevated'] as const).map((level) => {
                 const active = biometrics.cedaLevel === level;
+                const selBg =
+                  level === 'elevated'
+                    ? '#E89B8C'
+                    : level === 'moderate'
+                    ? '#E8C96D'
+                    : '#63D4A3';
+                const selFg =
+                  level === 'elevated'
+                    ? '#1D0F0D'
+                    : level === 'moderate'
+                    ? '#1B170A'
+                    : '#0B1A13';
                 return (
-                  <button
+                  <ExpressiveSegmentButton
                     key={level}
-                    type="button"
+                    selected={active}
+                    selectedBg={selBg}
+                    selectedColor={selFg}
+                    selectedBorder="transparent"
+                    idleBg="transparent"
+                    idleColor="#9CA3A0"
+                    selectedRadius="10px"
+                    idleRadius="999px"
+                    className="py-1.5 text-xs capitalize"
                     onClick={() => onUpdateBiometrics({ cedaLevel: level })}
-                    className={`rounded-md py-1.5 text-xs font-semibold capitalize transition-colors ${
-                      active
-                        ? level === 'elevated'
-                          ? 'bg-[#E89B8C] text-[#1D0F0D]'
-                          : level === 'moderate'
-                          ? 'bg-[#E8C96D] text-[#1B170A]'
-                          : 'bg-[#63D4A3] text-[#0B1A13]'
-                        : 'text-[#9CA3A0] hover:text-white'
-                    }`}
                   >
                     {level}
-                  </button>
+                  </ExpressiveSegmentButton>
                 );
               })}
             </div>
           </div>
 
+          {/* Watch Battery & Charging */}
+          <div>
+            <div className="mb-1 flex items-center justify-between text-xs">
+              <span className="text-[#9CA3A0]">Watch Battery</span>
+              <div className="flex items-center gap-2">
+                <ExpressiveChip
+                  label={biometrics.isCharging ? 'Charging' : 'Unplugged'}
+                  selected={Boolean(biometrics.isCharging)}
+                  size="xs"
+                  icon={
+                    <Zap
+                      className={`h-2.5 w-2.5 ${
+                        biometrics.isCharging ? 'fill-[#63D4A3] text-[#63D4A3]' : ''
+                      }`}
+                    />
+                  }
+                  onClick={() => onUpdateBiometrics({ isCharging: !biometrics.isCharging })}
+                />
+                <span
+                  className="font-mono font-semibold tabular-nums"
+                  style={{
+                    color: biometrics.isCharging
+                      ? '#63D4A3'
+                      : (biometrics.batteryLevel ?? 84) <= 20
+                      ? '#F0B0A3'
+                      : (biometrics.batteryLevel ?? 84) <= 45
+                      ? '#E8C96D'
+                      : '#A4DCC0',
+                  }}
+                >
+                  {biometrics.batteryLevel ?? 84}%
+                </span>
+              </div>
+            </div>
+            <input
+              type="range"
+              min={1}
+              max={100}
+              value={biometrics.batteryLevel ?? 84}
+              onChange={(e) => onUpdateBiometrics({ batteryLevel: Number(e.target.value) })}
+              className="studio-slider w-full"
+            />
+          </div>
+
           {/* 1-Tap Simulate Stress Spike */}
-          <button
-            type="button"
+          <ExpressiveButton
+            variant="danger"
+            size="md"
+            fullWidth
+            leadingIcon={<Activity className="h-4 w-4 text-[#E89B8C]" />}
             onClick={onTriggerStressSpike}
-            className="flex min-h-[40px] w-full items-center justify-center gap-2 rounded-xl border border-[#E89B8C]/45 bg-[#2F1C19] px-4 text-xs font-semibold text-[#E89B8C] transition-colors hover:brightness-115 active:scale-[0.98]"
           >
-            <Activity className="h-4 w-4 text-[#E89B8C]" />
-            <span>Simulate Stress Spike</span>
-          </button>
+            Simulate Stress Spike
+          </ExpressiveButton>
         </section>
 
         {/* 2. One-Page Therapist Summary & Exports */}
@@ -211,40 +304,45 @@ export const CompanionPanel: React.FC<CompanionPanelProps> = ({
           <h3 className="text-xs font-semibold text-[#E5E9E7]">
             Therapist Summary &amp; Export
           </h3>
-          <button
-            type="button"
+          <ExpressiveButton
+            variant="filled"
+            size="md"
+            fullWidth
+            leadingIcon={<FileText className="h-4 w-4" />}
+            className="font-bold"
             onClick={onOpenTherapistModal}
-            className="flex min-h-[40px] w-full items-center justify-center gap-2 rounded-xl bg-[#63D4A3] px-4 text-xs font-bold text-[#0B1A13] transition-colors hover:bg-[#76DDB0] active:scale-[0.98]"
           >
-            <FileText className="h-4 w-4" />
-            <span>Open 1-Page Therapist Summary</span>
-          </button>
+            Open 1-Page Therapist Summary
+          </ExpressiveButton>
 
           <div className="grid grid-cols-3 gap-1.5">
-            <button
-              type="button"
+            <ExpressiveButton
+              variant="tonal"
+              size="sm"
+              fullWidth
+              leadingIcon={<FileJson className="h-3.5 w-3.5 text-[#9CA3A0]" />}
               onClick={onExportJSON}
-              className="flex min-h-[34px] items-center justify-center gap-1 rounded-lg border border-[#2E3532] bg-[#1E2321] text-xs font-medium text-[#E5E9E7] hover:bg-[#262C2A]"
             >
-              <FileJson className="h-3.5 w-3.5 text-[#9CA3A0]" />
-              <span>.json</span>
-            </button>
-            <button
-              type="button"
+              .json
+            </ExpressiveButton>
+            <ExpressiveButton
+              variant="tonal"
+              size="sm"
+              fullWidth
+              leadingIcon={<FileSpreadsheet className="h-3.5 w-3.5 text-[#9CA3A0]" />}
               onClick={onExportCSV}
-              className="flex min-h-[34px] items-center justify-center gap-1 rounded-lg border border-[#2E3532] bg-[#1E2321] text-xs font-medium text-[#E5E9E7] hover:bg-[#262C2A]"
             >
-              <FileSpreadsheet className="h-3.5 w-3.5 text-[#9CA3A0]" />
-              <span>.csv</span>
-            </button>
-            <button
-              type="button"
+              .csv
+            </ExpressiveButton>
+            <ExpressiveButton
+              variant="tonal"
+              size="sm"
+              fullWidth
+              leadingIcon={<FileText className="h-3.5 w-3.5 text-[#9CA3A0]" />}
               onClick={onExportMarkdown}
-              className="flex min-h-[34px] items-center justify-center gap-1 rounded-lg border border-[#2E3532] bg-[#1E2321] text-xs font-medium text-[#E5E9E7] hover:bg-[#262C2A]"
             >
-              <FileText className="h-3.5 w-3.5 text-[#9CA3A0]" />
-              <span>.md</span>
-            </button>
+              .md
+            </ExpressiveButton>
           </div>
         </section>
 
@@ -257,49 +355,51 @@ export const CompanionPanel: React.FC<CompanionPanelProps> = ({
             {CASE_FINISHES.map((fin) => {
               const active = settings.caseFinish === fin.id;
               return (
-                <button
+                <ExpressiveChip
                   key={fin.id}
-                  type="button"
+                  label={fin.label}
+                  selected={active}
+                  size="sm"
+                  leadingDotColor={fin.swatch}
+                  accentColor="#F4F6F5"
+                  className="w-full"
                   onClick={() => onUpdateSettings({ caseFinish: fin.id })}
-                  className={`flex items-center justify-center gap-1.5 rounded-lg border py-1.5 text-xs font-medium transition-colors ${
-                    active
-                      ? 'border-[#63D4A3] bg-[#152920] text-[#F4F6F5]'
-                      : 'border-[#2E3532] bg-[#1E2321] text-[#D1D6D4] hover:bg-[#262C2A]'
-                  }`}
-                >
-                  <span
-                    className="h-2.5 w-2.5 rounded-full border border-white/30"
-                    style={{ backgroundColor: fin.swatch }}
-                  />
-                  <span>{fin.label}</span>
-                </button>
+                />
               );
             })}
           </div>
 
           {/* Hardware Toggles */}
           <div className="grid grid-cols-3 gap-1.5">
-            <button
-              type="button"
+            <ExpressiveSegmentButton
+              selected={settings.aodEnabled}
+              selectedBg="#152920"
+              selectedColor="#63D4A3"
+              selectedBorder="rgba(99, 212, 163, 0.6)"
+              idleBg="#1E2321"
+              idleColor="#D1D6D4"
+              idleBorder="#2E3532"
+              selectedRadius="12px"
+              idleRadius="18px"
+              className="flex-col gap-1 py-2 text-[11px]"
               onClick={() => onUpdateSettings({ aodEnabled: !settings.aodEnabled })}
-              className={`flex flex-col items-center justify-center gap-1 rounded-lg border py-2 text-[11px] font-medium transition-colors ${
-                settings.aodEnabled
-                  ? 'border-[#63D4A3]/60 bg-[#152920] text-[#63D4A3]'
-                  : 'border-[#2E3532] bg-[#1E2321] text-[#D1D6D4] hover:bg-[#262C2A]'
-              }`}
             >
               <Moon className="h-3.5 w-3.5" />
               <span>AOD</span>
-            </button>
+            </ExpressiveSegmentButton>
 
-            <button
-              type="button"
+            <ExpressiveSegmentButton
+              selected={settings.audioEnabled}
+              selectedBg="#152920"
+              selectedColor="#63D4A3"
+              selectedBorder="rgba(99, 212, 163, 0.6)"
+              idleBg="#1E2321"
+              idleColor="#D1D6D4"
+              idleBorder="#2E3532"
+              selectedRadius="12px"
+              idleRadius="18px"
+              className="flex-col gap-1 py-2 text-[11px]"
               onClick={() => onUpdateSettings({ audioEnabled: !settings.audioEnabled })}
-              className={`flex flex-col items-center justify-center gap-1 rounded-lg border py-2 text-[11px] font-medium transition-colors ${
-                settings.audioEnabled
-                  ? 'border-[#63D4A3]/60 bg-[#152920] text-[#63D4A3]'
-                  : 'border-[#2E3532] bg-[#1E2321] text-[#D1D6D4] hover:bg-[#262C2A]'
-              }`}
             >
               {settings.audioEnabled ? (
                 <Volume2 className="h-3.5 w-3.5" />
@@ -307,55 +407,66 @@ export const CompanionPanel: React.FC<CompanionPanelProps> = ({
                 <VolumeX className="h-3.5 w-3.5" />
               )}
               <span>Audio</span>
-            </button>
+            </ExpressiveSegmentButton>
 
-            <button
-              type="button"
+            <ExpressiveSegmentButton
+              selected={settings.hapticsEnabled}
+              selectedBg="#152920"
+              selectedColor="#63D4A3"
+              selectedBorder="rgba(99, 212, 163, 0.6)"
+              idleBg="#1E2321"
+              idleColor="#D1D6D4"
+              idleBorder="#2E3532"
+              selectedRadius="12px"
+              idleRadius="18px"
+              className="flex-col gap-1 py-2 text-[11px]"
               onClick={() => onUpdateSettings({ hapticsEnabled: !settings.hapticsEnabled })}
-              className={`flex flex-col items-center justify-center gap-1 rounded-lg border py-2 text-[11px] font-medium transition-colors ${
-                settings.hapticsEnabled
-                  ? 'border-[#63D4A3]/60 bg-[#152920] text-[#63D4A3]'
-                  : 'border-[#2E3532] bg-[#1E2321] text-[#D1D6D4] hover:bg-[#262C2A]'
-              }`}
             >
               <Vibrate className="h-3.5 w-3.5" />
               <span>Haptics</span>
-            </button>
+            </ExpressiveSegmentButton>
           </div>
 
           {/* Anchor Voice Tone & Preview */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <p className="text-xs text-[#9CA3A0]">Anchor Voice Tone</p>
-              <button
-                type="button"
+              <ExpressiveButton
+                variant="tonal"
+                size="xs"
+                surfaceColor="#152920"
+                accentColor="#63D4A3"
+                borderColor="rgba(99, 212, 163, 0.45)"
+                leadingIcon={<Play className="h-2.5 w-2.5" />}
                 onClick={() => previewAnchorVoice(activeVoice, setVoicePreviewStatus)}
-                className="inline-flex items-center gap-1 rounded-md border border-[#63D4A3]/45 bg-[#152920] px-2 py-0.5 text-[10.5px] font-semibold text-[#63D4A3] transition-colors hover:bg-[#1B362A]"
               >
-                <Play className="h-2.5 w-2.5" />
-                <span>Preview</span>
-              </button>
+                Preview
+              </ExpressiveButton>
             </div>
             <div className="grid grid-cols-3 gap-1.5">
               {ANCHOR_VOICE_PRESETS.map((preset) => {
                 const active = activeVoice === preset.id;
                 return (
-                  <button
+                  <ExpressiveSegmentButton
                     key={preset.id}
-                    type="button"
+                    selected={active}
+                    selectedBg="#152920"
+                    selectedColor="#F4F6F5"
+                    selectedBorder="#63D4A3"
+                    idleBg="#1E2321"
+                    idleColor="#D1D6D4"
+                    idleBorder="#2E3532"
+                    selectedRadius="10px"
+                    idleRadius="999px"
+                    className="py-1.5 text-xs"
                     onClick={() => {
                       setAnchorVoicePreset(preset.id);
                       onUpdateSettings({ anchorVoice: preset.id });
                       previewAnchorVoice(preset.id, setVoicePreviewStatus);
                     }}
-                    className={`rounded-lg border py-1.5 text-xs font-medium transition-colors ${
-                      active
-                        ? 'border-[#63D4A3] bg-[#152920] text-[#F4F6F5]'
-                        : 'border-[#2E3532] bg-[#1E2321] text-[#D1D6D4] hover:bg-[#262C2A]'
-                    }`}
                   >
                     {preset.label}
-                  </button>
+                  </ExpressiveSegmentButton>
                 );
               })}
             </div>
@@ -375,22 +486,22 @@ export const CompanionPanel: React.FC<CompanionPanelProps> = ({
                 const active = t.id === activeTile;
                 const isAnchor = t.id === 5;
                 return (
-                  <button
+                  <ExpressiveSegmentButton
                     key={t.id}
-                    type="button"
+                    selected={active}
+                    selectedBg={isAnchor ? '#2A1B19' : '#152920'}
+                    selectedColor={isAnchor ? '#F0B0A3' : '#63D4A3'}
+                    selectedBorder={isAnchor ? '#E89B8C' : '#63D4A3'}
+                    idleBg={isAnchor ? '#1D1615' : '#1E2321'}
+                    idleColor={isAnchor ? '#E89B8C' : '#D1D6D4'}
+                    idleBorder={isAnchor ? '#4D302B' : '#2E3532'}
+                    selectedRadius="10px"
+                    idleRadius="999px"
+                    className="px-1.5 py-1.5 text-[10.5px] whitespace-nowrap"
                     onClick={() => onSelectTile(t.id)}
-                    className={`rounded-lg border px-1.5 py-1.5 text-[10.5px] font-medium transition-colors whitespace-nowrap ${
-                      active
-                        ? isAnchor
-                          ? 'border-[#E89B8C] bg-[#2A1B19] text-[#F0B0A3]'
-                          : 'border-[#63D4A3] bg-[#152920] text-[#63D4A3]'
-                        : isAnchor
-                        ? 'border-[#4D302B] bg-[#1D1615] text-[#E89B8C] hover:bg-[#271C1A]'
-                        : 'border-[#2E3532] bg-[#1E2321] text-[#D1D6D4] hover:bg-[#262C2A]'
-                    }`}
                   >
                     {t.shortName}
-                  </button>
+                  </ExpressiveSegmentButton>
                 );
               })}
             </div>
@@ -402,17 +513,17 @@ export const CompanionPanel: React.FC<CompanionPanelProps> = ({
               <Sun className="h-3 w-3 text-[#F0D57B]" />
               Space = Emotions
             </span>
-            <button
-              type="button"
+            <ExpressiveButton
+              variant="text"
+              size="xs"
+              leadingIcon={<RotateCcw className="h-3.5 w-3.5" />}
               onClick={onResetDemoData}
-              className="flex items-center gap-1 text-xs font-medium text-[#9CA3A0] hover:text-white"
             >
-              <RotateCcw className="h-3.5 w-3.5" />
-              <span>Reset 30D Data</span>
-            </button>
+              Reset 30D Data
+            </ExpressiveButton>
           </div>
         </section>
       </div>
     </aside>
   );
-};
+});

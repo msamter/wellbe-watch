@@ -1,13 +1,20 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import { Activity, ArrowLeft, FileText, Printer, Sparkles, Wind } from 'lucide-react';
 import { RULER_THEMES, WellbeState } from '../../types';
 import { computeAnalyticsSummary } from '../../utils/coachEngine';
+import { m3Springs } from '../../styles/m3Tokens';
+import {
+  ExpressiveMorphLoader,
+  ExpressiveWatchCardSkeleton,
+} from '../watch/ExpressiveLoaders';
 import {
   CurvedTimeText,
   EdgeActionButton,
   MicroRollNumber,
   WearScrollColumn,
 } from '../watch/WearPrimitives';
+import { ExpressiveButton, ExpressiveSegmentButton } from '../watch/ExpressiveControls';
 
 interface TrendsAnalyticsTileProps {
   timeText: string;
@@ -16,6 +23,7 @@ interface TrendsAnalyticsTileProps {
   onChangeRange: (days: 7 | 30) => void;
   onStartReset: (protocolId: string) => void;
   onOpenFullTherapistSheet: () => void;
+  isSyncing?: boolean;
   onSubViewChange?: (active: boolean) => void;
   crownDelta: { seq: number; delta: number };
   onScrollReport: (ratio: number, hasOverflow: boolean) => void;
@@ -47,6 +55,7 @@ export const TrendsAnalyticsTile: React.FC<TrendsAnalyticsTileProps> = ({
   onChangeRange,
   onStartReset,
   onOpenFullTherapistSheet,
+  isSyncing = false,
   onSubViewChange,
   crownDelta,
   onScrollReport,
@@ -57,6 +66,29 @@ export const TrendsAnalyticsTile: React.FC<TrendsAnalyticsTileProps> = ({
   const [selectedDayIdx, setSelectedDayIdx] = useState(6);
   const [gaugeMode, setGaugeMode] = useState<GaugePreviewMode>('live');
   const [mindBodyMetric, setMindBodyMetric] = useState<MindBodyMetric>('sleep');
+  const [rangeRefreshing, setRangeRefreshing] = useState(false);
+  const rangeTimerRef = useRef<number | null>(null);
+  const moodCurveGradId = useId();
+
+  const isLoadingView = isSyncing || rangeRefreshing;
+
+  useEffect(() => {
+    return () => {
+      if (rangeTimerRef.current) window.clearTimeout(rangeTimerRef.current);
+    };
+  }, []);
+
+  const handleRangeChange = (days: 7 | 30) => {
+    if (days === rangeDays) return;
+    onHaptic();
+    onChangeRange(days);
+    setRangeRefreshing(true);
+    if (rangeTimerRef.current) window.clearTimeout(rangeTimerRef.current);
+    rangeTimerRef.current = window.setTimeout(() => {
+      setRangeRefreshing(false);
+      rangeTimerRef.current = null;
+    }, 360);
+  };
 
   const summary = useMemo(
     () => computeAnalyticsSummary(state, rangeDays),
@@ -137,9 +169,8 @@ export const TrendsAnalyticsTile: React.FC<TrendsAnalyticsTileProps> = ({
     };
   }, [gaugeMode, summary]);
 
-  // Needle angle: 180° (left, 0) -> 360° (right, 100)
-  const needleAngleDeg = 180 + (gaugeData.score / 100) * 180;
-  const needleTip = polarPt(106, 98, 56, needleAngleDeg);
+  // Needle rotation: 0deg (left, score 0) -> 180deg (right, score 100)
+  const needleRotateDeg = (gaugeData.score / 100) * 180;
 
   // Interactive 7-Day Mood Curve geometry (SVG 240 x 96)
   const curvePoints = useMemo(() => {
@@ -221,17 +252,18 @@ export const TrendsAnalyticsTile: React.FC<TrendsAnalyticsTileProps> = ({
               </p>
             </div>
 
-            <button
-              type="button"
+            <ExpressiveButton
+              variant="outlined"
+              size="xs"
+              leadingIcon={<ArrowLeft className="h-3.5 w-3.5" />}
+              className="mx-auto"
               onClick={() => {
                 onHaptic();
                 setShowDigest(false);
               }}
-              className="mx-auto flex items-center gap-1 rounded-full border border-[#2F3633] bg-[#1C211F] px-4 py-1.5 text-[11px] font-medium text-[#D1D6D4] hover:text-white"
             >
-              <ArrowLeft className="h-3.5 w-3.5" />
-              <span>Back to Trends</span>
-            </button>
+              Back to Trends
+            </ExpressiveButton>
           </div>
         </WearScrollColumn>
 
@@ -259,45 +291,70 @@ export const TrendsAnalyticsTile: React.FC<TrendsAnalyticsTileProps> = ({
         paddingBottomClass="pb-[54px]"
       >
         <div className="flex flex-col gap-3">
-          {/* Header: Date Range + 7D / 30D Toggle + Non-Sticky Therapist Summary Button */}
+          {/* Header: Date Range + M3 Expressive 7D / 30D Toggle + Shape-Morphing Therapist Summary Button */}
           <div className="flex flex-col items-center text-center">
-            <p className="text-[10.5px] font-medium text-[#9CA3A0]">
-              {`Live Biometrics · ${summary.dateRangeLabel}`}
-            </p>
-            <div className="mt-2 inline-flex rounded-full border border-[#2B312F] bg-[#181C1B] p-0.5">
+            <div className="flex items-center gap-1.5">
+              {isLoadingView && (
+                <ExpressiveMorphLoader size={18} label="Refreshing trends" />
+              )}
+              <p className="text-[10.5px] font-medium text-[#9CA3A0]">
+                {isLoadingView
+                  ? 'Updating wellness trends…'
+                  : `Live Biometrics · ${summary.dateRangeLabel}`}
+              </p>
+            </div>
+            <div className="mt-2 inline-flex gap-1 rounded-full border border-[#2B312F] bg-[#181C1B] p-0.5">
               {([7, 30] as const).map((days) => {
                 const active = rangeDays === days;
                 return (
-                  <button
+                  <ExpressiveSegmentButton
                     key={days}
-                    type="button"
-                    onClick={() => {
-                      onHaptic();
-                      onChangeRange(days);
-                    }}
-                    className={`wear-press min-h-[28px] rounded-full px-4 text-[11px] font-semibold transition-colors active:scale-[0.93] ${
-                      active ? 'bg-[#262C2A] text-[#F4F6F5]' : 'text-[#9CA3A0] hover:text-[#E5E9E7]'
-                    }`}
+                    selected={active}
+                    selectedBorder="transparent"
+                    className="min-h-[28px] px-4 text-[11px]"
+                    onClick={() => handleRangeChange(days)}
                   >
                     {`${days}D`}
-                  </button>
+                  </ExpressiveSegmentButton>
                 );
               })}
             </div>
 
-            <button
-              type="button"
+            <ExpressiveButton
+              variant="filled"
+              size="sm"
+              leadingIcon={<FileText className="h-3.5 w-3.5" />}
+              className="mt-2 font-bold"
               onClick={() => {
                 onHaptic();
                 setShowDigest(true);
               }}
-              className="wear-press mt-2 inline-flex min-h-[34px] items-center justify-center gap-1.5 rounded-full bg-[#63D4A3] px-4 text-[11.5px] font-bold text-[#0B1A13] transition-colors hover:bg-[#76DDB0] active:scale-[0.93]"
             >
-              <FileText className="h-3.5 w-3.5" />
-              <span>Therapist Summary</span>
-            </button>
+              Therapist Summary
+            </ExpressiveButton>
           </div>
 
+          <AnimatePresence mode="wait">
+            {isLoadingView ? (
+              <motion.div
+                key="trends-skeletons"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0, scale: 0.96 }}
+                transition={m3Springs.defaultEffects}
+                className="flex flex-col gap-3"
+              >
+                <ExpressiveWatchCardSkeleton variant="analytics" />
+                <ExpressiveWatchCardSkeleton variant="analytics" />
+              </motion.div>
+            ) : (
+              <motion.div
+                key={`trends-loaded-${rangeDays}`}
+                initial={{ opacity: 0, y: 14, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={m3Springs.defaultSpatial}
+                className="flex flex-col gap-3"
+              >
           {/* 1. Emotional Distribution — Animated 280ms SVG Donut Ring + All 5 Affective Buckets */}
           <div className="rounded-[22px] border border-[#2B312F] bg-[#181C1B] p-3.5">
             <div className="flex items-center justify-between gap-2">
@@ -401,7 +458,7 @@ export const TrendsAnalyticsTile: React.FC<TrendsAnalyticsTileProps> = ({
               className="mt-2 overflow-visible"
             >
               <defs>
-                <linearGradient id="moodCurveGrad" x1="0" y1="0" x2="0" y2="1">
+                <linearGradient id={moodCurveGradId} x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#63D4A3" stopOpacity="0.28" />
                   <stop offset="100%" stopColor="#63D4A3" stopOpacity="0.0" />
                 </linearGradient>
@@ -429,7 +486,7 @@ export const TrendsAnalyticsTile: React.FC<TrendsAnalyticsTileProps> = ({
                 </g>
               ))}
 
-              {moodAreaPath && <path d={moodAreaPath} fill="url(#moodCurveGrad)" />}
+              {moodAreaPath && <path d={moodAreaPath} fill={`url(#${moodCurveGradId})`} />}
               {moodPolyline && (
                 <polyline
                   fill="none"
@@ -472,18 +529,22 @@ export const TrendsAnalyticsTile: React.FC<TrendsAnalyticsTileProps> = ({
               {curvePoints.map((pt) => {
                 const isSelected = pt.idx === selectedDayIdx;
                 return (
-                  <button
+                  <ExpressiveSegmentButton
                     key={pt.dateISO}
-                    type="button"
+                    selected={isSelected}
+                    selectedBg="#63D4A3"
+                    selectedColor="#0B1A13"
+                    selectedBorder="#63D4A3"
+                    idleBg="#202523"
+                    idleColor="#D1D6D4"
+                    idleBorder="#2B312F"
+                    selectedRadius="10px"
+                    idleRadius="14px"
+                    className="flex-col py-1 text-center"
                     onClick={() => {
                       onHaptic();
                       setSelectedDayIdx(pt.idx);
                     }}
-                    className={`flex flex-col items-center justify-center rounded-[10px] border py-1 text-center transition-all active:scale-90 ${
-                      isSelected
-                        ? 'border-[#63D4A3] bg-[#63D4A3] text-[#0B1A13]'
-                        : 'border-[#2B312F] bg-[#202523] text-[#D1D6D4] hover:bg-[#282E2C]'
-                    }`}
                   >
                     <span className="text-[9px] font-bold leading-none">{pt.label}</span>
                     <span
@@ -493,7 +554,7 @@ export const TrendsAnalyticsTile: React.FC<TrendsAnalyticsTileProps> = ({
                     >
                       {pt.score.toFixed(1)}
                     </span>
-                  </button>
+                  </ExpressiveSegmentButton>
                 );
               })}
             </div>
@@ -520,7 +581,7 @@ export const TrendsAnalyticsTile: React.FC<TrendsAnalyticsTileProps> = ({
             </h3>
 
             {/* Live / Balanced / Strained / High Interactive Selector */}
-            <div className="mt-2 grid grid-cols-4 gap-1 rounded-[12px] border border-[#2B312F] bg-[#121514] p-0.5">
+            <div className="mt-2 grid grid-cols-4 gap-1 rounded-[14px] border border-[#2B312F] bg-[#121514] p-0.5">
               {(
                 [
                   { id: 'live', label: 'Live' },
@@ -531,21 +592,24 @@ export const TrendsAnalyticsTile: React.FC<TrendsAnalyticsTileProps> = ({
               ).map((tab) => {
                 const active = gaugeMode === tab.id;
                 return (
-                  <button
+                  <ExpressiveSegmentButton
                     key={tab.id}
-                    type="button"
+                    selected={active}
+                    selectedBg="#262C2A"
+                    selectedColor="#F4F6F5"
+                    selectedBorder="transparent"
+                    idleBg="transparent"
+                    idleColor="#9CA3A0"
+                    selectedRadius="9px"
+                    idleRadius="999px"
+                    className="py-1 text-[10px]"
                     onClick={() => {
                       onHaptic();
                       setGaugeMode(tab.id);
                     }}
-                    className={`rounded-[9px] py-1 text-[10px] font-semibold transition-colors ${
-                      active
-                        ? 'bg-[#262C2A] text-[#F4F6F5]'
-                        : 'text-[#9CA3A0] hover:text-[#E5E9E7]'
-                    }`}
                   >
                     {tab.label}
-                  </button>
+                  </ExpressiveSegmentButton>
                 );
               })}
             </div>
@@ -591,16 +655,20 @@ export const TrendsAnalyticsTile: React.FC<TrendsAnalyticsTileProps> = ({
                   {gaugeData.status}
                 </text>
 
-                {/* Gauge Needle */}
+                {/* Gauge Needle (GPU-composited transform rotation around pivot 106,98) */}
                 <line
                   x1="106"
                   y1="98"
-                  x2={needleTip.x.toFixed(1)}
-                  y2={needleTip.y.toFixed(1)}
+                  x2="50"
+                  y2="98"
                   stroke="#F4F6F5"
                   strokeWidth="2.4"
                   strokeLinecap="round"
-                  style={{ transition: 'all 280ms cubic-bezier(0.16,1,0.3,1)' }}
+                  style={{
+                    transformOrigin: '106px 98px',
+                    transform: `rotate(${needleRotateDeg.toFixed(1)}deg)`,
+                    transition: 'transform 320ms cubic-bezier(0.16,1,0.3,1)',
+                  }}
                 />
                 <circle cx="106" cy="98" r="5" fill="#F4F6F5" />
                 <circle cx="106" cy="98" r="2.2" fill="#181C1B" />
@@ -651,17 +719,19 @@ export const TrendsAnalyticsTile: React.FC<TrendsAnalyticsTileProps> = ({
             {/* Insight Note + Start Reset in Routines CTA */}
             <p className="mt-2 text-[10.5px] leading-snug text-[#D1D6D4]">{gaugeData.note}</p>
 
-            <button
-              type="button"
+            <ExpressiveButton
+              variant="filled"
+              size="sm"
+              fullWidth
+              leadingIcon={<Wind className="h-3.5 w-3.5" />}
+              className="mt-2.5 font-bold"
               onClick={() => {
                 onHaptic();
                 onStartReset('4-7-8');
               }}
-              className="wear-press mt-2.5 flex min-h-[36px] w-full items-center justify-center gap-1.5 rounded-full bg-[#63D4A3] px-3 text-[11px] font-bold text-[#0B1A13] transition-colors hover:bg-[#76DDB0] active:scale-[0.93]"
             >
-              <Wind className="h-3.5 w-3.5" />
-              <span>Start Reset in Routines</span>
-            </button>
+              Start Reset in Routines
+            </ExpressiveButton>
           </div>
 
           {/* 4. Mind-Body Pattern: Sleep & Mood Pattern (with Sleep / Steps Toggle) */}
@@ -674,23 +744,28 @@ export const TrendsAnalyticsTile: React.FC<TrendsAnalyticsTileProps> = ({
                 </h3>
               </div>
 
-              <div className="inline-flex rounded-full border border-[#2B312F] bg-[#121514] p-0.5">
+              <div className="inline-flex gap-0.5 rounded-full border border-[#2B312F] bg-[#121514] p-0.5">
                 {(['sleep', 'steps'] as const).map((m) => {
                   const active = mindBodyMetric === m;
                   return (
-                    <button
+                    <ExpressiveSegmentButton
                       key={m}
-                      type="button"
+                      selected={active}
+                      selectedBg="#262C2A"
+                      selectedColor="#F4F6F5"
+                      selectedBorder="transparent"
+                      idleBg="transparent"
+                      idleColor="#9CA3A0"
+                      selectedRadius="10px"
+                      idleRadius="999px"
+                      className="px-2.5 py-0.5 text-[10px] capitalize"
                       onClick={() => {
                         onHaptic();
                         setMindBodyMetric(m);
                       }}
-                      className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold capitalize transition-colors ${
-                        active ? 'bg-[#262C2A] text-[#F4F6F5]' : 'text-[#9CA3A0] hover:text-white'
-                      }`}
                     >
                       {m}
-                    </button>
+                    </ExpressiveSegmentButton>
                   );
                 })}
               </div>
@@ -819,6 +894,9 @@ export const TrendsAnalyticsTile: React.FC<TrendsAnalyticsTileProps> = ({
                 : `Average ${summary.avgSteps.toLocaleString()} steps/day · Over ${rangeDays} days`}
             </p>
           </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </WearScrollColumn>
     </div>

@@ -21,6 +21,10 @@
   body::-webkit-scrollbar {
     display: none;
   }
+
+  button {
+    -webkit-tap-highlight-color: transparent;
+  }
 }
 
 /* Hide scrollbars cleanly while keeping smooth wheel & touch scrolling active */
@@ -223,6 +227,25 @@ textarea {
 
 .animate-wave-bar {
   animation: waveformBar 0.9s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-watch-halo,
+  .animate-haptic-ring,
+  .animate-tap-ripple,
+  .animate-tile-right,
+  .animate-tile-left,
+  .animate-radial-reveal,
+  .animate-bounce-top,
+  .animate-bounce-bottom,
+  .animate-micro-roll,
+  .animate-panic-beacon,
+  .animate-wave-bar {
+    animation: none !important;
+  }
+  .wear-press {
+    transition: none !important;
+  }
 }
 
 /* Custom slim range sliders for the Companion Studio Panel */

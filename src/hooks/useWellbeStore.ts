@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createSeedState } from '../data/seedData';
 import {
   AppSettings,
@@ -39,7 +39,11 @@ function loadInitialState(): WellbeState {
           : seed.dailyBiometrics,
       liveBiometrics: { ...seed.liveBiometrics, ...parsed.liveBiometrics },
       settings: { ...seed.settings, ...parsed.settings },
-      notifications: Array.isArray(parsed.notifications) ? parsed.notifications : seed.notifications,
+      notifications:
+        Array.isArray(parsed.notifications) &&
+        !(parsed.notifications.length === 1 && parsed.notifications[0]?.id === 'notif-1')
+          ? parsed.notifications
+          : seed.notifications,
     };
   } catch {
     return createSeedState();
@@ -69,18 +73,43 @@ function triggerFileDownload(filename: string, content: string, mimeType: string
 export function useWellbeStore() {
   const [state, setState] = useState<WellbeState>(() => loadInitialState());
   const [activeStressAlert, setActiveStressAlert] = useState<StressAlertItem | null>(null);
+  const stateRef = useRef<WellbeState>(state);
+  stateRef.current = state;
 
-  // Persist to localStorage on any state change
+  // Debounced localStorage persistence to prevent synchronous JSON serialization jank during slider drags
   useEffect(() => {
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    } catch {
-      // Storage quota fallback
-    }
+    const saveNow = () => {
+      try {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(stateRef.current));
+      } catch {
+        // Storage quota fallback
+      }
+    };
+
+    const timer = window.setTimeout(saveNow, 250);
+    return () => window.clearTimeout(timer);
   }, [state]);
+
+  // Flush latest state on page hide / unload so debounced changes are never lost
+  useEffect(() => {
+    const flush = () => {
+      try {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(stateRef.current));
+      } catch {
+        // Storage quota fallback
+      }
+    };
+    window.addEventListener('pagehide', flush);
+    window.addEventListener('beforeunload', flush);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      window.removeEventListener('beforeunload', flush);
+    };
+  }, []);
 
   const logMood = useCallback(
     (quadrant: RulerQuadrant, emotion: string, tags: string[] = [], note?: string): MoodEntry => {
+      const bio = stateRef.current.liveBiometrics;
       const entry: MoodEntry = {
         id: `m-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         timestamp: new Date().toISOString(),
@@ -88,9 +117,9 @@ export function useWellbeStore() {
         emotion,
         tags,
         note,
-        hrAtLog: state.liveBiometrics.hr,
-        hrvAtLog: state.liveBiometrics.hrv,
-        sleepHoursAtLog: state.liveBiometrics.sleepHours,
+        hrAtLog: bio.hr,
+        hrvAtLog: bio.hrv,
+        sleepHoursAtLog: bio.sleepHours,
       };
       setState((prev) => ({
         ...prev,
@@ -98,7 +127,7 @@ export function useWellbeStore() {
       }));
       return entry;
     },
-    [state.liveBiometrics.hr, state.liveBiometrics.hrv, state.liveBiometrics.sleepHours]
+    []
   );
 
   const toggleTagOnMood = useCallback((moodId: string, tag: string) => {
@@ -124,7 +153,7 @@ export function useWellbeStore() {
 
   const logGratitude = useCallback(
     (text: string, tag: string): GratitudeEntry => {
-      const latestQ = state.moods[0]?.quadrant;
+      const latestQ = stateRef.current.moods[0]?.quadrant;
       const entry: GratitudeEntry = {
         id: `g-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         timestamp: new Date().toISOString(),
@@ -138,7 +167,7 @@ export function useWellbeStore() {
       }));
       return entry;
     },
-    [state.moods]
+    []
   );
 
   const deleteGratitude = useCallback((id: string) => {
@@ -221,12 +250,48 @@ export function useWellbeStore() {
   }, []);
 
   const updateBiometrics = useCallback(
-    (patch: Partial<Pick<LiveBiometrics, 'hr' | 'hrv' | 'sleepHours' | 'cedaLevel'>>) => {
+    (
+      patch: Partial<
+        Pick<
+          LiveBiometrics,
+          'hr' | 'hrv' | 'sleepHours' | 'cedaLevel' | 'batteryLevel' | 'isCharging'
+        >
+      >
+    ) => {
+      const current = stateRef.current;
+      const nextHr = patch.hr ?? current.liveBiometrics.hr;
+      const nextCeda = patch.cedaLevel ?? current.liveBiometrics.cedaLevel;
+      const shouldAlert =
+        !current.settings.dndStressAlerts &&
+        ((patch.cedaLevel === 'elevated' && current.liveBiometrics.cedaLevel !== 'elevated') ||
+          (patch.hr !== undefined && patch.hr >= 104 && current.liveBiometrics.hr < 104));
+
+      const alert: StressAlertItem | null = shouldAlert
+        ? {
+            id: `alert-${Date.now()}`,
+            timestamp: new Date().toISOString(),
+            appName: 'WELLBE+',
+            category: 'wellbe-alert',
+            title: 'Elevated Body Response',
+            detail: `HR ${nextHr} bpm · cEDA ${nextCeda}. Take a moment to ground?`,
+            hr: nextHr,
+            cedaLevel: 'elevated',
+            actionLabel: 'Voice Anchor',
+            actionTarget: 'panic',
+            dismissed: false,
+          }
+        : null;
+
       setState((prev) => {
         const hr = patch.hr ?? prev.liveBiometrics.hr;
         const hrv = patch.hrv ?? prev.liveBiometrics.hrv;
         const sleepHours = patch.sleepHours ?? prev.liveBiometrics.sleepHours;
         const cedaLevel = patch.cedaLevel ?? prev.liveBiometrics.cedaLevel;
+        const batteryLevel =
+          patch.batteryLevel !== undefined
+            ? Math.max(1, Math.min(100, Math.round(patch.batteryLevel)))
+            : prev.liveBiometrics.batteryLevel;
+        const isCharging = patch.isCharging ?? prev.liveBiometrics.isCharging;
         const readiness = calcReadiness(hr, hrv, sleepHours, cedaLevel);
         const hrHistory =
           patch.hr !== undefined
@@ -240,38 +305,6 @@ export function useWellbeStore() {
               )
             : prev.dailyBiometrics;
 
-        // Trigger body-response alert if threshold crossed and DND is off
-        if (
-          !prev.settings.dndStressAlerts &&
-          ((patch.cedaLevel === 'elevated' && prev.liveBiometrics.cedaLevel !== 'elevated') ||
-            (patch.hr !== undefined && patch.hr >= 104 && prev.liveBiometrics.hr < 104))
-        ) {
-          const alert: StressAlertItem = {
-            id: `alert-${Date.now()}`,
-            timestamp: new Date().toISOString(),
-            title: 'Elevated Body Response',
-            detail: `HR ${hr} bpm · cEDA ${cedaLevel}. Take a moment to ground?`,
-            hr,
-            cedaLevel: 'elevated',
-            dismissed: false,
-          };
-          setActiveStressAlert(alert);
-          return {
-            ...prev,
-            dailyBiometrics: nextDaily,
-            liveBiometrics: {
-              ...prev.liveBiometrics,
-              hr,
-              hrv,
-              sleepHours,
-              cedaLevel,
-              readiness,
-              hrHistory,
-            },
-            notifications: [alert, ...prev.notifications].slice(0, 10),
-          };
-        }
-
         return {
           ...prev,
           dailyBiometrics: nextDaily,
@@ -281,11 +314,18 @@ export function useWellbeStore() {
             hrv,
             sleepHours,
             cedaLevel,
+            batteryLevel,
+            isCharging,
             readiness,
             hrHistory,
           },
+          notifications: alert ? [alert, ...prev.notifications].slice(0, 10) : prev.notifications,
         };
       });
+
+      if (alert) {
+        setActiveStressAlert(alert);
+      }
     },
     []
   );
@@ -296,10 +336,14 @@ export function useWellbeStore() {
     const alert: StressAlertItem = {
       id: `spike-${Date.now()}`,
       timestamp: new Date().toISOString(),
+      appName: 'WELLBE+',
+      category: 'wellbe-alert',
       title: 'Elevated Body Response',
       detail: `HR ${spikeHr} bpm · cEDA spike detected on Pixel Watch`,
       hr: spikeHr,
       cedaLevel: 'elevated',
+      actionLabel: 'Voice Anchor',
+      actionTarget: 'panic',
       dismissed: false,
     };
 
@@ -402,31 +446,33 @@ export function useWellbeStore() {
     setActiveStressAlert(null);
   }, []);
 
-  // Export helpers
+  // Export helpers (read from stateRef so callbacks remain referentially stable)
   const exportJSON = useCallback(() => {
+    const cur = stateRef.current;
     const payload = {
       exportedAt: new Date().toISOString(),
       app: 'WELLBE+ (3.2) for Google Pixel Watch',
       storage: 'local-first',
-      summary7d: computeAnalyticsSummary(state, 7),
-      summary30d: computeAnalyticsSummary(state, 30),
-      moods: state.moods,
-      gratitudes: state.gratitudes,
-      resets: state.resets,
-      dailyBiometrics: state.dailyBiometrics,
+      summary7d: computeAnalyticsSummary(cur, 7),
+      summary30d: computeAnalyticsSummary(cur, 30),
+      moods: cur.moods,
+      gratitudes: cur.gratitudes,
+      resets: cur.resets,
+      dailyBiometrics: cur.dailyBiometrics,
     };
     triggerFileDownload(
       `wellbe-pixel-watch-log-${new Date().toISOString().slice(0, 10)}.json`,
       JSON.stringify(payload, null, 2),
       'application/json'
     );
-  }, [state]);
+  }, []);
 
   const exportCSV = useCallback(() => {
+    const cur = stateRef.current;
     const headers = ['Timestamp', 'Type', 'Quadrant', 'Emotion_or_Title', 'Tags', 'HR_BPM', 'HRV_ms', 'Sleep_Hours', 'Note'];
     const rows: string[][] = [headers];
 
-    for (const m of state.moods) {
+    for (const m of cur.moods) {
       rows.push([
         m.timestamp,
         'Mood',
@@ -439,7 +485,7 @@ export function useWellbeStore() {
         (m.note || '').replace(/"/g, '""'),
       ]);
     }
-    for (const g of state.gratitudes) {
+    for (const g of cur.gratitudes) {
       rows.push([
         g.timestamp,
         'Gratitude',
@@ -452,7 +498,7 @@ export function useWellbeStore() {
         g.text.replace(/"/g, '""'),
       ]);
     }
-    for (const r of state.resets) {
+    for (const r of cur.resets) {
       rows.push([
         r.timestamp,
         'SomaticReset',
@@ -472,45 +518,43 @@ export function useWellbeStore() {
       csv,
       'text/csv;charset=utf-8'
     );
-  }, [state]);
+  }, []);
 
-  const exportMarkdown = useCallback(
-    (rangeDays: 7 | 30 = 30) => {
-      const s = computeAnalyticsSummary(state, rangeDays);
-      const md = [
-        `# WELLBE+ (3.2) Clinical Summary — Last ${rangeDays} Days`,
-        `Generated: ${new Date().toLocaleString()} · Source: Pixel Watch Local-First Vault`,
-        ``,
-        `## Emotional Distribution (RULER · ${s.totalMoods} Check-Ins)`,
-        `- **Green (Calm / Pleasant):** ${s.quadrantPcts.green}% (${s.quadrantCounts.green})`,
-        `- **Yellow (Energized / Pleasant):** ${s.quadrantPcts.yellow}% (${s.quadrantCounts.yellow})`,
-        `- **Blue (Low / Unpleasant):** ${s.quadrantPcts.blue}% (${s.quadrantCounts.blue})`,
-        `- **Red (High Stress / Unpleasant):** ${s.quadrantPcts.red}% (${s.quadrantCounts.red})`,
-        ``,
-        `## Pixel Watch Biometrics & Correlation`,
-        `- **Average Sleep:** ${s.avgSleep} hrs/night`,
-        `- **Average HRV (rMSSD):** ${s.avgHrv} ms (${s.hrvDelta >= 0 ? '+' : ''}${s.hrvDelta} ms vs 30D baseline)`,
-        `- **Average / Resting HR:** ${s.avgHr} / ${s.avgRestingHr} bpm`,
-        `- **Sleep-Mood Finding:** ${s.sleepMoodCorrelationText}`,
-        ``,
-        `## Contexts & Triggers`,
-        `- **Frequent Stress/Low Contexts:** ${s.redTriggerTags.map((t) => `${t.tag} (${t.count})`).join(', ') || 'None'}`,
-        `- **Protective / Steadying Contexts:** ${s.greenSupportTags.map((t) => `${t.tag} (${t.count})`).join(', ') || 'None'}`,
-        ``,
-        `## Somatic Resets & Gratitude`,
-        `- **Resets Completed:** ${s.resetsCompleted} sessions (${s.totalResetMinutes} min total)`,
-        `- **Avg Heart Rate Reduction:** -${s.avgResetHrDrop} bpm · Reported Calmer: ${s.calmerRatePct}%`,
-        `- **Gratitude Captures:** ${s.gratitudeCount} entries (Top themes: ${s.topGratitudeTags.map((t) => t.tag).join(', ') || 'Quiet Moment'})`,
-      ].join('\n');
+  const exportMarkdown = useCallback((rangeDays: 7 | 30 = 30) => {
+    const cur = stateRef.current;
+    const s = computeAnalyticsSummary(cur, rangeDays);
+    const md = [
+      `# WELLBE+ (3.2) Clinical Summary — Last ${rangeDays} Days`,
+      `Generated: ${new Date().toLocaleString()} · Source: Pixel Watch Local-First Vault`,
+      ``,
+      `## Emotional Distribution (RULER · ${s.totalMoods} Check-Ins)`,
+      `- **Green (Calm / Pleasant):** ${s.quadrantPcts.green}% (${s.quadrantCounts.green})`,
+      `- **Yellow (Energized / Pleasant):** ${s.quadrantPcts.yellow}% (${s.quadrantCounts.yellow})`,
+      `- **Blue (Low / Unpleasant):** ${s.quadrantPcts.blue}% (${s.quadrantCounts.blue})`,
+      `- **Red (High Stress / Unpleasant):** ${s.quadrantPcts.red}% (${s.quadrantCounts.red})`,
+      ``,
+      `## Pixel Watch Biometrics & Correlation`,
+      `- **Average Sleep:** ${s.avgSleep} hrs/night`,
+      `- **Average HRV (rMSSD):** ${s.avgHrv} ms (${s.hrvDelta >= 0 ? '+' : ''}${s.hrvDelta} ms vs 30D baseline)`,
+      `- **Average / Resting HR:** ${s.avgHr} / ${s.avgRestingHr} bpm`,
+      `- **Sleep-Mood Finding:** ${s.sleepMoodCorrelationText}`,
+      ``,
+      `## Contexts & Triggers`,
+      `- **Frequent Stress/Low Contexts:** ${s.redTriggerTags.map((t) => `${t.tag} (${t.count})`).join(', ') || 'None'}`,
+      `- **Protective / Steadying Contexts:** ${s.greenSupportTags.map((t) => `${t.tag} (${t.count})`).join(', ') || 'None'}`,
+      ``,
+      `## Somatic Resets & Gratitude`,
+      `- **Resets Completed:** ${s.resetsCompleted} sessions (${s.totalResetMinutes} min total)`,
+      `- **Avg Heart Rate Reduction:** -${s.avgResetHrDrop} bpm · Reported Calmer: ${s.calmerRatePct}%`,
+      `- **Gratitude Captures:** ${s.gratitudeCount} entries (Top themes: ${s.topGratitudeTags.map((t) => t.tag).join(', ') || 'Quiet Moment'})`,
+    ].join('\n');
 
-      triggerFileDownload(
-        `wellbe-therapist-summary-${rangeDays}d-${new Date().toISOString().slice(0, 10)}.md`,
-        md,
-        'text/markdown;charset=utf-8'
-      );
-    },
-    [state]
-  );
+    triggerFileDownload(
+      `wellbe-therapist-summary-${rangeDays}d-${new Date().toISOString().slice(0, 10)}.md`,
+      md,
+      'text/markdown;charset=utf-8'
+    );
+  }, []);
 
   return {
     state,

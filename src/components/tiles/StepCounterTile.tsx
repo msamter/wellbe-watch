@@ -2,6 +2,7 @@ import React from 'react';
 import { Footprints, Plus } from 'lucide-react';
 import { DailyBiometricDay } from '../../types';
 import { CurvedEdgeArc, CurvedTimeText, MicroRollNumber } from '../watch/WearPrimitives';
+import { ExpressiveButton } from '../watch/ExpressiveControls';
 
 interface StepCounterTileProps {
   timeText: string;
@@ -166,24 +167,22 @@ export const StepCounterTile: React.FC<StepCounterTileProps> = ({
         </div>
       </div>
 
-      {/* Bottom Material 3 Tonal Action Pill Nestled in the 6 O'Clock Horseshoe Opening */}
+      {/* Bottom Material 3 Expressive Tonal Action Pill Nestled in the 6 O'Clock Horseshoe Opening */}
       <div className="relative z-10 flex items-center justify-center">
-        <button
-          type="button"
+        <ExpressiveButton
+          size="sm"
+          surfaceColor={goalReached ? '#133025' : '#11272C'}
+          accentColor={accent}
+          borderColor="transparent"
+          leadingIcon={<Plus className="h-3.5 w-3.5 stroke-[2.4]" />}
           onClick={() => {
             onHaptic(accent);
             onAddSteps(250);
           }}
-          className="wear-press inline-flex min-h-[34px] items-center gap-1 rounded-full px-4 text-[11px] font-semibold transition-colors active:scale-[0.93]"
-          style={{
-            backgroundColor: goalReached ? '#133025' : '#11272C',
-            color: accent,
-          }}
           aria-label="Add 250 steps"
         >
-          <Plus className="h-3.5 w-3.5 stroke-[2.4]" />
-          <span>250 steps</span>
-        </button>
+          250 steps
+        </ExpressiveButton>
       </div>
     </div>
   );

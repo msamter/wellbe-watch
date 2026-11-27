@@ -1,6 +1,18 @@
 import React, { useId } from 'react';
-import { BarChart3, Bell, ShieldAlert, Sun } from 'lucide-react';
+import {
+  BarChart3,
+  BatteryCharging,
+  BatteryFull,
+  BatteryLow,
+  BatteryMedium,
+  Bell,
+  ShieldAlert,
+  Sun,
+  Zap,
+} from 'lucide-react';
 import { LiveBiometrics, MoodEntry, RULER_THEMES, TileId } from '../../types';
+import { ExpressiveButton, ExpressiveChip, ExpressiveIconButton } from '../watch/ExpressiveControls';
+import { ExpressiveMorphLoader } from '../watch/ExpressiveLoaders';
 import {
   CurvedEdgeArc,
   MicroRollNumber,
@@ -15,9 +27,11 @@ interface WatchFaceTileProps {
   biometrics: LiveBiometrics;
   aodEnabled: boolean;
   unreadCount: number;
+  isSyncing?: boolean;
   onJumpTile: (tile: TileId, radial?: boolean) => void;
   onLaunchPanic: () => void;
   onOpenNotifications: () => void;
+  onToggleCharging?: () => void;
   onHaptic: (color?: string) => void;
 }
 
@@ -27,9 +41,11 @@ export const WatchFaceTile: React.FC<WatchFaceTileProps> = ({
   biometrics,
   aodEnabled,
   unreadCount,
+  isSyncing = false,
   onJumpTile,
   onLaunchPanic,
   onOpenNotifications,
+  onToggleCharging,
   onHaptic,
 }) => {
   const topLeftPathId = useId();
@@ -44,6 +60,24 @@ export const WatchFaceTile: React.FC<WatchFaceTileProps> = ({
 
   const hrvProgress = Math.min(1, Math.max(0.12, biometrics.readiness / 100));
   const sleepProgress = Math.min(1, Math.max(0.12, biometrics.sleepHours / 8.5));
+  const batteryLevel = Math.max(1, Math.min(100, Math.round(biometrics.batteryLevel ?? 84)));
+  const isCharging = Boolean(biometrics.isCharging);
+
+  const batteryColor = isCharging
+    ? '#63D4A3'
+    : batteryLevel <= 20
+    ? '#F0B0A3'
+    : batteryLevel <= 45
+    ? '#E8C96D'
+    : '#A4DCC0';
+
+  const BatteryStatusIcon = isCharging
+    ? BatteryCharging
+    : batteryLevel <= 20
+    ? BatteryLow
+    : batteryLevel <= 65
+    ? BatteryMedium
+    : BatteryFull;
 
   const isCompactClock = clockStr.length <= 4;
 
@@ -51,6 +85,18 @@ export const WatchFaceTile: React.FC<WatchFaceTileProps> = ({
   if (aodEnabled) {
     return (
       <div className="relative flex h-full w-full flex-col items-center justify-center bg-black px-6 text-center">
+        <div
+          className="absolute top-[24px] left-1/2 -translate-x-1/2 flex items-center gap-1 font-mono text-[10px] tabular-nums text-white/45"
+          aria-label={`Battery ${batteryLevel}%${isCharging ? ', charging' : ''}`}
+        >
+          <BatteryStatusIcon
+            className="h-3.5 w-3.5"
+            style={{ color: isCharging ? '#63D4A3' : 'rgba(255,255,255,0.45)' }}
+          />
+          <span>{batteryLevel}%</span>
+          {isCharging && <Zap className="h-2.5 w-2.5 fill-[#63D4A3] text-[#63D4A3]" />}
+        </div>
+
         <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-white/35">
           {dateStr}
         </p>
@@ -88,6 +134,43 @@ export const WatchFaceTile: React.FC<WatchFaceTileProps> = ({
         style={{
           background: `radial-gradient(circle, ${theme.softGlow} 0%, rgba(18,21,20,0) 70%)`,
         }}
+      />
+
+      {/* Top-Center 12-o'clock Watch Battery & Charging Status Indicator */}
+      <ExpressiveChip
+        size="xs"
+        selected={isCharging}
+        onClick={() => {
+          if (!onToggleCharging) return;
+          onHaptic(isCharging ? '#A4DCC0' : '#63D4A3');
+          onToggleCharging();
+        }}
+        accentColor={batteryColor}
+        selectedSurface="#152920"
+        selectedBorder="rgba(99,212,163,0.45)"
+        ariaLabel={`Watch battery ${batteryLevel}%${isCharging ? ', charging' : ''}`}
+        title={isCharging ? 'Charging — tap to unplug' : 'Tap to simulate charging'}
+        className="absolute top-[20px] left-1/2 z-20 -translate-x-1/2 font-mono tabular-nums backdrop-blur-sm"
+        style={{
+          color: batteryColor,
+          backgroundColor: isCharging ? '#152920' : 'rgba(24,28,27,0.85)',
+          borderColor: isCharging ? 'rgba(99,212,163,0.45)' : 'rgba(255,255,255,0.1)',
+        }}
+        icon={<BatteryStatusIcon className="h-3.5 w-3.5 shrink-0" />}
+        label={
+          <span className="inline-flex items-center">
+            <MicroRollNumber value={batteryLevel} />
+            <span className="text-[9.5px] opacity-85">%</span>
+          </span>
+        }
+        trailing={
+          isCharging ? (
+            <Zap
+              className="h-2.5 w-2.5 shrink-0 fill-[#63D4A3] text-[#63D4A3] animate-pulse"
+              aria-hidden="true"
+            />
+          ) : undefined
+        }
       />
 
       {/* Outer Curved Arc Complications */}
@@ -170,104 +253,125 @@ export const WatchFaceTile: React.FC<WatchFaceTileProps> = ({
           {clockStr}
         </div>
 
-        {/* Live Mood Status Interactive Pill */}
-        <button
-          type="button"
+        {/* Live Mood Status Interactive Pill (M3 Expressive Pill -> Squircle Press) */}
+        <ExpressiveButton
+          size="xs"
           onClick={() => {
             onHaptic(theme.accent);
             onJumpTile(1, true);
           }}
-          style={{
-            backgroundColor: theme.surface,
-            borderColor: theme.border,
-          }}
-          className="wear-press mt-2.5 flex items-center gap-2 rounded-full border px-3.5 py-1 text-[11.5px] font-semibold transition-colors duration-[350ms] active:scale-[0.93]"
+          surfaceColor={theme.surface}
+          borderColor={theme.border}
+          accentColor={theme.accent}
+          className="mt-2.5 px-3.5 text-[11.5px]"
+          leadingIcon={
+            <span
+              className="h-2.5 w-2.5 rounded-full transition-colors duration-[350ms]"
+              style={{ backgroundColor: theme.accent }}
+            />
+          }
+          trailingIcon={
+            <span className="font-mono text-[10px] font-medium text-[#D1D6D4]/80 tabular-nums">
+              {latestMood ? formatRelativeTime(latestMood.timestamp) : 'Now'}
+            </span>
+          }
         >
-          <span
-            className="h-2.5 w-2.5 rounded-full transition-colors duration-[350ms]"
-            style={{ backgroundColor: theme.accent }}
-          />
-          <span style={{ color: theme.accent }}>{latestMood?.emotion || 'Calm'}</span>
-          <span className="font-mono text-[10px] text-[#D1D6D4]/80 tabular-nums">
-            {latestMood ? formatRelativeTime(latestMood.timestamp) : 'Now'}
-          </span>
-        </button>
+          {latestMood?.emotion || 'Calm'}
+        </ExpressiveButton>
 
-        {/* Live HR micro-readout with 140ms Micro-Rolling Numerals */}
+        {/* Live HR micro-readout with M3 Expressive Morph Loader while syncing */}
         <div className="mt-1.5 flex items-center gap-2 font-mono text-[10.5px] text-[#9CA3A0] tabular-nums">
-          <span>
-            HR <MicroRollNumber value={biometrics.hr} className="text-[#E5E9E7]" /> bpm
-          </span>
-          <span aria-hidden="true">·</span>
-          <span className="capitalize">cEDA {biometrics.cedaLevel}</span>
+          {isSyncing ? (
+            <div className="flex items-center gap-1.5 text-[#63D4A3]">
+              <ExpressiveMorphLoader size={18} label="Syncing watch biometrics" />
+              <span>Syncing sensors…</span>
+            </div>
+          ) : (
+            <>
+              <span>
+                HR <MicroRollNumber value={biometrics.hr} className="text-[#E5E9E7]" /> bpm
+              </span>
+              <span aria-hidden="true">·</span>
+              <span className="capitalize">cEDA {biometrics.cedaLevel}</span>
+            </>
+          )}
         </div>
       </div>
 
       {/* 3 Circular Bottom-Arc Quick-Launch Complications: Anchor (Left) | Emotions (Center) | Trends (Right) */}
       <div className="relative z-10 mt-2.5 flex items-end justify-center gap-4">
         {/* Left: Panic Anchor */}
-        <button
-          type="button"
-          onClick={() => {
-            onHaptic('#F0B0A3');
-            onLaunchPanic();
-          }}
-          className="wear-press group -translate-y-2 flex flex-col items-center gap-1 active:scale-[0.93]"
-          aria-label="Launch Voice Panic Anchor"
-        >
-          <div className="flex h-11 w-11 items-center justify-center rounded-full border border-[#E89B8C]/50 bg-[#2F1C19] text-[#E89B8C] transition-colors group-hover:brightness-115">
+        <div className="-translate-y-2 flex flex-col items-center gap-1">
+          <ExpressiveIconButton
+            size={44}
+            onClick={() => {
+              onHaptic('#F0B0A3');
+              onLaunchPanic();
+            }}
+            ariaLabel="Launch Voice Panic Anchor"
+            surfaceColor="#2F1C19"
+            borderColor="rgba(232,155,140,0.5)"
+            accentColor="#E89B8C"
+          >
             <ShieldAlert className="h-[18px] w-[18px]" />
-          </div>
+          </ExpressiveIconButton>
           <span className="text-[10px] font-semibold text-[#E89B8C]">Anchor</span>
-        </button>
+        </div>
 
         {/* Center (Lowest Arc): Emotions Check-In */}
-        <button
-          type="button"
-          onClick={() => {
-            onHaptic('#F0D57B');
-            onJumpTile(1, true);
-          }}
-          className="wear-press group translate-y-1 flex flex-col items-center gap-1 active:scale-[0.93]"
-          aria-label="Open Emotions Check-In"
-        >
-          <div className="flex h-[50px] w-[50px] items-center justify-center rounded-full border border-[#685B3A] bg-[#332D1F] text-[#F0D57B] transition-colors group-hover:brightness-115">
+        <div className="translate-y-1 flex flex-col items-center gap-1">
+          <ExpressiveIconButton
+            size={50}
+            onClick={() => {
+              onHaptic('#F0D57B');
+              onJumpTile(1, true);
+            }}
+            ariaLabel="Open Emotions Check-In"
+            surfaceColor="#332D1F"
+            borderColor="#685B3A"
+            accentColor="#F0D57B"
+          >
             <Sun className="h-[20px] w-[20px]" />
-          </div>
+          </ExpressiveIconButton>
           <span className="text-[10px] font-semibold text-[#F0D57B]">Emotions</span>
-        </button>
+        </div>
 
         {/* Right: Trends Tile (Green) */}
-        <button
-          type="button"
-          onClick={() => {
-            onHaptic('#63D4A3');
-            onJumpTile(4, false);
-          }}
-          className="wear-press group -translate-y-2 flex flex-col items-center gap-1 active:scale-[0.93]"
-          aria-label="Open Trends Tile"
-        >
-          <div className="flex h-11 w-11 items-center justify-center rounded-full border border-[#3F6352] bg-[#1F3028] text-[#A4DCC0] transition-colors group-hover:brightness-115">
+        <div className="-translate-y-2 flex flex-col items-center gap-1">
+          <ExpressiveIconButton
+            size={44}
+            onClick={() => {
+              onHaptic('#63D4A3');
+              onJumpTile(4, false);
+            }}
+            ariaLabel="Open Trends Tile"
+            surfaceColor="#1F3028"
+            borderColor="#3F6352"
+            accentColor="#A4DCC0"
+          >
             <BarChart3 className="h-[18px] w-[18px]" />
-          </div>
+          </ExpressiveIconButton>
           <span className="text-[10px] font-semibold text-[#A4DCC0]">Trends</span>
-        </button>
+        </div>
       </div>
 
       {/* Subtle Bottom Notification Indicator Button */}
       {unreadCount > 0 && (
-        <button
-          type="button"
+        <ExpressiveIconButton
+          size={26}
           onClick={() => {
             onHaptic();
             onOpenNotifications();
           }}
-          aria-label="Open Notifications"
-          className="absolute bottom-[18px] right-[96px] z-20 flex h-6 w-6 items-center justify-center rounded-full border border-[#343B38] bg-[#1C211F] text-[#E8C96D] active:scale-90"
-          title="Swipe up for Body-Response alerts"
+          ariaLabel="Open Notifications"
+          surfaceColor="#1C211F"
+          borderColor="#343B38"
+          accentColor="#E8C96D"
+          className="absolute bottom-[18px] right-[96px] z-20"
+          title="Swipe down from Home for WELLBE+ notifications"
         >
           <Bell className="h-3 w-3" />
-        </button>
+        </ExpressiveIconButton>
       )}
     </div>
   );

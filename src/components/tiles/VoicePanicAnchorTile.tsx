@@ -26,6 +26,12 @@ import {
   CurvedTimeText,
   MicroRollNumber,
 } from '../watch/WearPrimitives';
+import {
+  ExpressiveButton,
+  ExpressiveChip,
+  ExpressiveIconButton,
+  ExpressiveSegmentButton,
+} from '../watch/ExpressiveControls';
 
 interface VoicePanicAnchorTileProps {
   timeText: string;
@@ -87,10 +93,10 @@ export const VoicePanicAnchorTile: React.FC<VoicePanicAnchorTileProps> = ({
   const prevPhaseRef = useRef(-1);
   const bannerTimerRef = useRef<number | null>(null);
 
-  const startSession = () => {
+  const startSession = (initialStage = 0) => {
     primeVoiceAudio();
     setCompletionBanner(null);
-    setStageIdx(0);
+    setStageIdx(initialStage);
     setTotalTicks(0);
     setPaused(false);
     setVoiceError(null);
@@ -98,6 +104,14 @@ export const VoicePanicAnchorTile: React.FC<VoicePanicAnchorTileProps> = ({
     prevCycleRef.current = 0;
     prevPhaseRef.current = -1;
     setSessionActive(true);
+  };
+
+  const jumpToStage = (nextIdx: number) => {
+    const cycleStart = Math.floor(totalTicks / 140) * 140;
+    prevCycleRef.current = Math.floor(cycleStart / 140);
+    prevPhaseRef.current = -1;
+    setStageIdx(nextIdx);
+    setTotalTicks(cycleStart);
   };
 
   const stopSessionToStandby = () => {
@@ -320,44 +334,45 @@ export const VoicePanicAnchorTile: React.FC<VoicePanicAnchorTileProps> = ({
         <div className="relative z-10 flex w-full max-w-[236px] flex-col items-center gap-2">
           <div className="grid w-full grid-cols-4 gap-1">
             {VOICE_PANIC_ANCHOR_STAGES.map((s) => (
-              <button
+              <ExpressiveSegmentButton
                 key={s.step}
-                type="button"
+                selected={false}
+                idleBg="#161A19"
+                idleColor="#D1D6D4"
+                idleBorder="#282F2C"
+                selectedRadius="10px"
+                idleRadius="14px"
+                className="flex-col px-1 py-1 text-center"
                 onClick={() => {
                   onHaptic('#F0B0A3');
-                  startSession();
-                  setStageIdx(s.step - 1);
+                  startSession(s.step - 1);
                 }}
-                className="wear-press flex flex-col items-center rounded-[10px] border border-[#282F2C] bg-[#161A19] px-1 py-1 text-center transition-colors hover:border-[#63D4A3]/50"
               >
                 <span className="font-mono text-[8.5px] font-bold text-[#63D4A3]">0{s.step}</span>
                 <span className="mt-0.5 max-w-full truncate text-[7.5px] font-medium text-[#D1D6D4]">
                   {s.headline.split(' ')[0]}
                 </span>
-              </button>
+              </ExpressiveSegmentButton>
             ))}
           </div>
 
-          <button
-            type="button"
+          <ExpressiveChip
+            label={audioEnabled ? 'Calm Voice On' : 'Voice Muted'}
+            selected={audioEnabled}
+            size="sm"
+            icon={
+              audioEnabled ? (
+                <Volume2 className="h-3 w-3 text-[#63D4A3]" />
+              ) : (
+                <VolumeX className="h-3 w-3 text-[#9CA3A0]" />
+              )
+            }
             onClick={() => {
               primeVoiceAudio();
               onHaptic();
               onToggleAudio();
             }}
-            className={`wear-press inline-flex h-7 items-center gap-1.5 rounded-full border px-3 text-[10px] font-semibold transition-colors active:scale-95 ${
-              audioEnabled
-                ? 'border-[#63D4A3]/50 bg-[#152920] text-[#63D4A3]'
-                : 'border-[#2F3633] bg-[#181C1B] text-[#D1D6D4]'
-            }`}
-          >
-            {audioEnabled ? (
-              <Volume2 className="h-3 w-3 text-[#63D4A3]" />
-            ) : (
-              <VolumeX className="h-3 w-3 text-[#9CA3A0]" />
-            )}
-            <span>{audioEnabled ? 'Calm Voice On' : 'Voice Muted'}</span>
-          </button>
+          />
         </div>
       </div>
     );
@@ -410,39 +425,36 @@ export const VoicePanicAnchorTile: React.FC<VoicePanicAnchorTileProps> = ({
         </div>
 
         <div className="mt-0.5 flex items-center justify-center gap-1.5">
-          <button
-            type="button"
+          <ExpressiveChip
+            label={audioEnabled ? 'Voice On' : 'Voice Off'}
+            selected={audioEnabled}
+            size="xs"
+            icon={
+              audioEnabled ? (
+                <Volume2 className="h-3 w-3 text-[#63D4A3]" />
+              ) : (
+                <VolumeX className="h-3 w-3 text-[#9CA3A0]" />
+              )
+            }
             onClick={() => {
               primeVoiceAudio();
               onHaptic();
               if (audioEnabled) stopSpeech();
               onToggleAudio();
             }}
-            className={`wear-press flex h-6 items-center gap-1 rounded-full border px-2.5 text-[9.5px] font-semibold transition-colors active:scale-95 ${
-              audioEnabled
-                ? 'border-[#63D4A3]/55 bg-[#152920] text-[#63D4A3]'
-                : 'border-[#2F3633] bg-[#181C1B] text-[#E5E9E7]'
-            }`}
-          >
-            {audioEnabled ? (
-              <Volume2 className="h-3 w-3 text-[#63D4A3]" />
-            ) : (
-              <VolumeX className="h-3 w-3 text-[#9CA3A0]" />
-            )}
-            <span>{audioEnabled ? 'Voice On' : 'Voice Off'}</span>
-          </button>
+          />
 
-          <button
-            type="button"
+          <ExpressiveIconButton
+            variant="outlined"
+            size={26}
+            ariaLabel="Stop Voice Panic Anchor"
             onClick={() => {
               onHaptic();
               stopSessionToStandby();
             }}
-            aria-label="Stop Voice Panic Anchor"
-            className="wear-press flex h-6 w-6 items-center justify-center rounded-full border border-[#2F3633] bg-[#181C1B] text-[#D1D6D4] hover:text-white active:scale-90"
           >
             <X className="h-3 w-3" />
-          </button>
+          </ExpressiveIconButton>
         </div>
       </div>
 
@@ -527,7 +539,7 @@ export const VoicePanicAnchorTile: React.FC<VoicePanicAnchorTileProps> = ({
                 onClick={() => {
                   primeVoiceAudio();
                   onHaptic();
-                  setStageIdx(idx);
+                  jumpToStage(idx);
                 }}
                 aria-label={`Jump to stage ${s.step}: ${s.headline}`}
                 className={`h-[5px] rounded-full transition-all duration-200 ${
@@ -545,10 +557,14 @@ export const VoicePanicAnchorTile: React.FC<VoicePanicAnchorTileProps> = ({
       </div>
 
       {/* Circular-Safe Bottom Controls: Pause | Next Cue + Centered Mint "I Feel Steadier" Pill */}
-      <div className="relative z-10 flex w-full max-w-[200px] flex-col items-center gap-1.5">
+      <div className="relative z-10 flex w-full max-w-[206px] flex-col items-center gap-1.5">
         <div className="grid w-full grid-cols-2 gap-1.5">
-          <button
-            type="button"
+          <ExpressiveButton
+            variant="outlined"
+            size="xs"
+            fullWidth
+            selected={paused}
+            leadingIcon={paused ? <Play className="h-3 w-3" /> : <Pause className="h-3 w-3" />}
             onClick={() => {
               primeVoiceAudio();
               onHaptic();
@@ -557,32 +573,32 @@ export const VoicePanicAnchorTile: React.FC<VoicePanicAnchorTileProps> = ({
                 return !p;
               });
             }}
-            className="wear-press flex min-h-[26px] items-center justify-center gap-1 rounded-full border border-[#2F3633] bg-[#181C1B] px-2 text-[9.5px] font-semibold text-[#E5E9E7] hover:bg-[#202523] active:scale-95"
           >
-            {paused ? <Play className="h-3 w-3" /> : <Pause className="h-3 w-3" />}
-            <span>{paused ? 'Resume' : 'Pause'}</span>
-          </button>
+            {paused ? 'Resume' : 'Pause'}
+          </ExpressiveButton>
 
-          <button
-            type="button"
+          <ExpressiveButton
+            variant="outlined"
+            size="xs"
+            fullWidth
             onClick={() => {
               primeVoiceAudio();
               onHaptic();
-              setStageIdx((s) => (s + 1) % VOICE_PANIC_ANCHOR_STAGES.length);
+              jumpToStage((stageIdx + 1) % VOICE_PANIC_ANCHOR_STAGES.length);
             }}
-            className="wear-press flex min-h-[26px] items-center justify-center rounded-full border border-[#2F3633] bg-[#181C1B] px-2 text-[9.5px] font-semibold text-[#E5E9E7] hover:bg-[#202523] active:scale-95"
           >
             Next Cue
-          </button>
+          </ExpressiveButton>
         </div>
 
-        <button
-          type="button"
+        <ExpressiveButton
+          variant="filled"
+          size="sm"
+          className="w-[152px] font-bold shadow-[0_0_18px_rgba(99,212,163,0.24)]"
           onClick={handleExitSteadier}
-          className="wear-press min-h-[32px] w-[144px] rounded-full bg-[#63D4A3] px-4 text-[11px] font-bold text-[#0B1A13] shadow-[0_0_18px_rgba(99,212,163,0.24)] transition-colors hover:bg-[#76DDB0] active:scale-[0.93]"
         >
           I Feel Steadier
-        </button>
+        </ExpressiveButton>
       </div>
     </div>
   );

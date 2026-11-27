@@ -1,6 +1,7 @@
 import React from 'react';
 import { Minus, Moon, Plus } from 'lucide-react';
 import { CurvedEdgeArc, CurvedTimeText, MicroRollNumber } from '../watch/WearPrimitives';
+import { ExpressiveButton } from '../watch/ExpressiveControls';
 
 interface SleepTrackerTileProps {
   timeText: string;
@@ -162,34 +163,38 @@ export const SleepTrackerTile: React.FC<SleepTrackerTileProps> = ({
         </div>
       </div>
 
-      {/* Bottom Material 3 Tonal Quick-Adjust Pills Nestled in the 6 O'Clock Horseshoe Opening */}
+      {/* Bottom Material 3 Expressive Tonal Quick-Adjust Pills Nestled in the 6 O'Clock Horseshoe Opening */}
       <div className="relative z-10 flex items-center justify-center gap-2">
-        <button
-          type="button"
+        <ExpressiveButton
+          size="sm"
+          surfaceColor="#141D31"
+          accentColor="#A8C7FA"
+          borderColor="transparent"
+          leadingIcon={<Minus className="h-3 w-3 stroke-[2.4]" />}
           onClick={() => {
             onHaptic(accent);
             onUpdateSleep(clampedHours - 0.25);
           }}
           disabled={clampedHours <= 3.0}
-          className="wear-press inline-flex min-h-[34px] items-center gap-1 rounded-full bg-[#141D31] px-3.5 text-[11px] font-semibold text-[#A8C7FA] transition-colors hover:bg-[#1B2742] active:scale-[0.93] disabled:opacity-40"
           aria-label="Subtract 15 minutes of sleep"
         >
-          <Minus className="h-3 w-3 stroke-[2.4]" />
-          <span>15m</span>
-        </button>
-        <button
-          type="button"
+          15m
+        </ExpressiveButton>
+        <ExpressiveButton
+          size="sm"
+          surfaceColor="#141D31"
+          accentColor="#A8C7FA"
+          borderColor="transparent"
+          leadingIcon={<Plus className="h-3 w-3 stroke-[2.4]" />}
           onClick={() => {
             onHaptic(accent);
             onUpdateSleep(clampedHours + 0.25);
           }}
           disabled={clampedHours >= 11.0}
-          className="wear-press inline-flex min-h-[34px] items-center gap-1 rounded-full bg-[#141D31] px-3.5 text-[11px] font-semibold text-[#A8C7FA] transition-colors hover:bg-[#1B2742] active:scale-[0.93] disabled:opacity-40"
           aria-label="Add 15 minutes of sleep"
         >
-          <Plus className="h-3 w-3 stroke-[2.4]" />
-          <span>15m</span>
-        </button>
+          15m
+        </ExpressiveButton>
       </div>
     </div>
   );

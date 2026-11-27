@@ -168,6 +168,8 @@ export interface LiveBiometrics {
   cedaLevel: 'calm' | 'moderate' | 'elevated';
   readiness: number;
   hrHistory: number[];
+  batteryLevel: number;
+  isCharging: boolean;
   lastSyncedAt: string;
 }
 
@@ -191,8 +193,12 @@ export interface StressAlertItem {
   timestamp: string;
   title: string;
   detail: string;
-  hr: number;
-  cedaLevel: 'moderate' | 'elevated';
+  hr?: number;
+  cedaLevel?: 'calm' | 'moderate' | 'elevated';
+  appName?: string;
+  category?: 'wellbe-alert' | 'wellbe-routine' | 'wellbe-checkin' | 'wellbe-insight';
+  actionLabel?: string;
+  actionTarget?: 'panic' | 'emotions' | 'routines' | 'trends';
   dismissed: boolean;
 }
 

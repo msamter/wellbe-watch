@@ -47,6 +47,12 @@ import {
   MicroRollNumber,
   WearScrollColumn,
 } from '../watch/WearPrimitives';
+import {
+  ExpressiveButton,
+  ExpressiveChip,
+  ExpressiveIconButton,
+  ExpressiveSegmentButton,
+} from '../watch/ExpressiveControls';
 
 export type SomaticSubView =
   | { type: 'home' }
@@ -320,17 +326,18 @@ export const SomaticResetsTile: React.FC<SomaticResetsTileProps> = ({
             <p className="text-[10px] font-medium text-[#9CA3A0]">
               Somatic Sequences · Reset Duration
             </p>
-            <button
-              type="button"
+            <ExpressiveButton
+              variant="filled"
+              size="sm"
+              leadingIcon={<Plus className="h-3.5 w-3.5 stroke-[2.5]" />}
+              className="mt-2 font-bold"
               onClick={() => {
                 onHaptic('#63D4A3');
                 setSubView({ type: 'new-routine' });
               }}
-              className="wear-press mt-2 inline-flex min-h-[34px] items-center justify-center gap-1.5 rounded-full bg-[#63D4A3] px-4 text-[11.5px] font-bold text-[#0B1A13] transition-colors hover:bg-[#76DDB0] active:scale-[0.93]"
             >
-              <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
-              <span>New Routine</span>
-            </button>
+              New Routine
+            </ExpressiveButton>
           </div>
 
           {/* 1. Adaptive Active Check-In Context Card */}
@@ -379,9 +386,18 @@ export const SomaticResetsTile: React.FC<SomaticResetsTileProps> = ({
               {DURATIONS.map((m) => {
                 const active = m === durationMin;
                 return (
-                  <button
+                  <ExpressiveSegmentButton
                     key={m}
-                    type="button"
+                    selected={active}
+                    selectedBg="#63D4A3"
+                    selectedColor="#0B1A13"
+                    selectedBorder="#63D4A3"
+                    idleBg="#202523"
+                    idleColor="#D1D6D4"
+                    idleBorder="#2E3532"
+                    selectedRadius="10px"
+                    idleRadius="999px"
+                    className="min-h-[32px] font-mono text-[10.5px] tabular-nums"
                     onClick={() => {
                       onHaptic('#63D4A3');
                       if (m === durationMin && m === DURATIONS[0]) {
@@ -391,14 +407,9 @@ export const SomaticResetsTile: React.FC<SomaticResetsTileProps> = ({
                       }
                       onChangeDuration(m);
                     }}
-                    className={`wear-press min-h-[32px] rounded-[11px] border font-mono text-[10.5px] font-semibold transition-colors duration-150 tabular-nums active:scale-[0.93] ${
-                      active
-                        ? 'border-[#63D4A3] bg-[#63D4A3] text-[#0B1A13]'
-                        : 'border-[#2E3532] bg-[#202523] text-[#D1D6D4] hover:bg-[#282E2C]'
-                    }`}
                   >
                     {`${m}m`}
-                  </button>
+                  </ExpressiveSegmentButton>
                 );
               })}
             </div>
@@ -407,18 +418,22 @@ export const SomaticResetsTile: React.FC<SomaticResetsTileProps> = ({
 
             {/* Side-by-Side Quick Modules: Voice Panic Anchor & Gratitude Capture */}
             <div className="grid grid-cols-2 gap-1.5">
-              <button
-                type="button"
+              <ExpressiveSegmentButton
+                selected={adaptive.highlightPanic}
+                selectedBg="#2A1B19"
+                selectedColor="#F4F6F5"
+                selectedBorder="rgba(232, 155, 140, 0.75)"
+                idleBg="#202523"
+                idleColor="#F4F6F5"
+                idleBorder="#2E3532"
+                selectedRadius="14px"
+                idleRadius="18px"
+                className="min-h-[42px] gap-1.5 px-2 py-1.5 text-left"
                 onClick={() => {
                   primeVoiceAudio();
                   onHaptic('#F0B0A3');
                   onLaunchPanic();
                 }}
-                className={`wear-press flex min-h-[42px] items-center justify-center gap-1.5 rounded-[14px] border px-2 py-1.5 text-left transition-colors active:scale-[0.93] ${
-                  adaptive.highlightPanic
-                    ? 'border-[#E89B8C]/75 bg-[#2A1B19] text-[#F4F6F5]'
-                    : 'border-[#2E3532] bg-[#202523] text-[#F4F6F5] hover:bg-[#282E2C]'
-                }`}
               >
                 <ShieldAlert
                   className={`h-3.5 w-3.5 shrink-0 ${
@@ -428,19 +443,23 @@ export const SomaticResetsTile: React.FC<SomaticResetsTileProps> = ({
                 <span className="text-[10.5px] font-semibold leading-tight">
                   Voice Panic Anchor
                 </span>
-              </button>
+              </ExpressiveSegmentButton>
 
-              <button
-                type="button"
+              <ExpressiveSegmentButton
+                selected={adaptive.highlightGratitude}
+                selectedBg="#18222B"
+                selectedColor="#F4F6F5"
+                selectedBorder="#4B79A1"
+                idleBg="#202523"
+                idleColor="#F4F6F5"
+                idleBorder="#2E3532"
+                selectedRadius="14px"
+                idleRadius="18px"
+                className="min-h-[42px] gap-1.5 px-2 py-1.5 text-left"
                 onClick={() => {
                   onHaptic('#B0CCE5');
                   setSubView({ type: 'gratitude' });
                 }}
-                className={`wear-press flex min-h-[42px] items-center justify-center gap-1.5 rounded-[14px] border px-2 py-1.5 text-left transition-colors active:scale-[0.93] ${
-                  adaptive.highlightGratitude
-                    ? 'border-[#4B79A1] bg-[#18222B] text-[#F4F6F5] hover:bg-[#1E2B36]'
-                    : 'border-[#2E3532] bg-[#202523] text-[#F4F6F5] hover:bg-[#282E2C]'
-                }`}
               >
                 <Heart
                   className={`h-3.5 w-3.5 shrink-0 ${
@@ -450,7 +469,7 @@ export const SomaticResetsTile: React.FC<SomaticResetsTileProps> = ({
                 <span className="text-[10.5px] font-semibold leading-tight">
                   Gratitude Capture
                 </span>
-              </button>
+              </ExpressiveSegmentButton>
             </div>
           </div>
 
@@ -508,28 +527,27 @@ export const SomaticResetsTile: React.FC<SomaticResetsTileProps> = ({
                     </div>
 
                     <div className="mt-2.5 flex items-center justify-between gap-2">
-                      <button
-                        type="button"
+                      <ExpressiveChip
+                        label={routine.active ? 'Scheduled' : 'Paused'}
+                        selected={routine.active}
+                        size="xs"
+                        leadingDotColor={routine.active ? '#63D4A3' : '#565E5B'}
+                        selectedSurface="#202523"
+                        selectedBorder="#2E3532"
+                        accentColor="#E5E9E7"
                         onClick={() => {
                           onHaptic('#63D4A3');
                           onToggleRoutine(routine.id);
                         }}
-                        className={`wear-press inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[9.5px] font-semibold transition-colors active:scale-[0.93] ${
-                          routine.active
-                            ? 'border-[#2E3532] bg-[#202523] text-[#E5E9E7]'
-                            : 'border-[#262B29] bg-[#141716] text-[#7D8582]'
-                        }`}
-                      >
-                        <span
-                          className={`h-1.5 w-1.5 rounded-full ${
-                            routine.active ? 'bg-[#63D4A3]' : 'bg-[#565E5B]'
-                          }`}
-                        />
-                        <span>{routine.active ? 'Scheduled' : 'Paused'}</span>
-                      </button>
+                      />
 
-                      <button
-                        type="button"
+                      <ExpressiveButton
+                        variant="tonal"
+                        size="xs"
+                        surfaceColor="rgba(99, 212, 163, 0.15)"
+                        accentColor="#63D4A3"
+                        borderColor="rgba(99, 212, 163, 0.4)"
+                        leadingIcon={<Play className="h-2.5 w-2.5 fill-current" />}
                         onClick={() => {
                           primeVoiceAudio();
                           onHaptic(proto.accent);
@@ -540,11 +558,9 @@ export const SomaticResetsTile: React.FC<SomaticResetsTileProps> = ({
                             titleOverride: routine.name,
                           });
                         }}
-                        className="wear-press inline-flex items-center gap-1 rounded-full bg-[#63D4A3]/15 border border-[#63D4A3]/40 px-3 py-1 text-[10px] font-bold text-[#63D4A3] hover:bg-[#63D4A3]/25 active:scale-[0.93]"
                       >
-                        <Play className="h-2.5 w-2.5 fill-current" />
-                        <span>Start</span>
-                      </button>
+                        Start
+                      </ExpressiveButton>
                     </div>
                   </div>
                 );
@@ -677,17 +693,17 @@ const GratitudeCaptureView: React.FC<GratitudeCaptureViewProps> = ({
               </p>
               <h3 className="text-[14px] font-bold text-[#F4F6F5]">Gratitude Capture</h3>
             </div>
-            <button
-              type="button"
+            <ExpressiveIconButton
+              variant="outlined"
+              size={28}
+              ariaLabel="Close Gratitude Capture"
               onClick={() => {
                 onHaptic();
                 onBack();
               }}
-              aria-label="Close Gratitude Capture"
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[#2F3633] bg-[#181C1B] text-[#D1D6D4] hover:text-white active:scale-90"
             >
               <X className="h-3.5 w-3.5" />
-            </button>
+            </ExpressiveIconButton>
           </div>
 
           {/* Soothing Sanctuary Ambient Audio Bar */}
@@ -710,18 +726,13 @@ const GratitudeCaptureView: React.FC<GratitudeCaptureViewProps> = ({
 
           {/* Watch-Friendly Voice Dictation + Quick Anchor Chips */}
           <div className="flex items-center justify-between gap-2">
-            <button
-              type="button"
+            <ExpressiveChip
+              label={listening ? 'Listening…' : 'Voice Note'}
+              selected={listening}
+              size="sm"
+              icon={<Mic className="h-3 w-3 text-[#63D4A3]" />}
               onClick={handleMicTap}
-              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[10px] font-semibold transition-colors active:scale-95 ${
-                listening
-                  ? 'border-[#63D4A3] bg-[#152920] text-[#63D4A3]'
-                  : 'border-[#2E3532] bg-[#181C1B] text-[#E5E9E7] hover:bg-[#202523]'
-              }`}
-            >
-              <Mic className="h-3 w-3 text-[#63D4A3]" />
-              <span>{listening ? 'Listening…' : 'Voice Note'}</span>
-            </button>
+            />
             <span className="text-[9.5px] text-[#9CA3A0]">or tap anchor:</span>
           </div>
 
@@ -729,22 +740,18 @@ const GratitudeCaptureView: React.FC<GratitudeCaptureViewProps> = ({
             {GRATITUDE_QUICK_CHIPS.map((chip) => {
               const isSelected = selectedTag === chip && text.length > 0;
               return (
-                <button
+                <ExpressiveChip
                   key={chip}
-                  type="button"
+                  label={chip}
+                  selected={isSelected}
+                  showCheckOnSelect
+                  size="xs"
                   onClick={() => {
                     onHaptic();
                     setSelectedTag(chip);
                     setText(`Grateful for a steady moment of ${chip.toLowerCase()} today.`);
                   }}
-                  className={`rounded-full border px-2.5 py-1 text-[9.5px] font-medium transition-colors active:scale-95 ${
-                    isSelected
-                      ? 'border-[#63D4A3]/60 bg-[#152920] text-[#63D4A3]'
-                      : 'border-[#2E3532] bg-[#181C1B] text-[#D1D6D4] hover:bg-[#202523]'
-                  }`}
-                >
-                  {chip}
-                </button>
+                />
               );
             })}
           </div>
@@ -814,17 +821,17 @@ const NewRoutineView: React.FC<NewRoutineViewProps> = ({
         <div className="flex flex-col gap-2.5 text-left">
           <div className="flex items-center justify-between px-1">
             <span className="text-[12px] font-bold text-[#F4F6F5]">Create Routine</span>
-            <button
-              type="button"
+            <ExpressiveIconButton
+              variant="outlined"
+              size={28}
+              ariaLabel="Cancel new routine"
               onClick={() => {
                 onHaptic();
                 onCancel();
               }}
-              className="flex h-7 w-7 items-center justify-center rounded-full border border-[#2F3633] bg-[#181C1B] text-[#D1D6D4]"
-              aria-label="Cancel new routine"
             >
               <X className="h-3.5 w-3.5" />
-            </button>
+            </ExpressiveIconButton>
           </div>
 
           {/* Name Input + Presets */}
@@ -838,21 +845,17 @@ const NewRoutineView: React.FC<NewRoutineViewProps> = ({
             />
             <div className="mt-1.5 flex flex-wrap gap-1">
               {ROUTINE_PRESET_NAMES.map((preset) => (
-                <button
+                <ExpressiveChip
                   key={preset}
-                  type="button"
+                  label={preset}
+                  selected={name === preset}
+                  showCheckOnSelect
+                  size="xs"
                   onClick={() => {
                     onHaptic();
                     setName(preset);
                   }}
-                  className={`rounded-full border px-2 py-0.5 text-[9px] font-medium ${
-                    name === preset
-                      ? 'border-[#63D4A3] bg-[#152920] text-[#63D4A3]'
-                      : 'border-[#2E3532] bg-[#202523] text-[#D1D6D4]'
-                  }`}
-                >
-                  {preset}
-                </button>
+                />
               ))}
             </div>
           </div>
@@ -864,22 +867,26 @@ const NewRoutineView: React.FC<NewRoutineViewProps> = ({
               {SOMATIC_PROTOCOLS.slice(0, 4).map((p) => {
                 const active = protocolId === p.id;
                 return (
-                  <button
+                  <ExpressiveSegmentButton
                     key={p.id}
-                    type="button"
+                    selected={active}
+                    selectedBg="#152920"
+                    selectedColor="#63D4A3"
+                    selectedBorder="#63D4A3"
+                    idleBg="#202523"
+                    idleColor="#E5E9E7"
+                    idleBorder="#2E3532"
+                    selectedRadius="11px"
+                    idleRadius="16px"
+                    className="w-full justify-between px-2.5 py-1.5 text-left text-[10.5px]"
                     onClick={() => {
                       onHaptic();
                       setProtocolId(p.id);
                     }}
-                    className={`flex items-center justify-between rounded-[11px] border px-2.5 py-1.5 text-left text-[10.5px] font-semibold ${
-                      active
-                        ? 'border-[#63D4A3] bg-[#152920] text-[#63D4A3]'
-                        : 'border-[#2E3532] bg-[#202523] text-[#E5E9E7]'
-                    }`}
                   >
                     <span>{p.name}</span>
                     <span className="text-[9px] font-normal opacity-80">{p.shortSubtitle}</span>
-                  </button>
+                  </ExpressiveSegmentButton>
                 );
               })}
             </div>
@@ -891,21 +898,20 @@ const NewRoutineView: React.FC<NewRoutineViewProps> = ({
               <p className="text-[9.5px] font-semibold text-[#9CA3A0]">Schedule Time</p>
               <div className="mt-1 flex flex-wrap gap-1">
                 {ROUTINE_TIMES.map((t) => (
-                  <button
+                  <ExpressiveChip
                     key={t}
-                    type="button"
+                    label={t}
+                    selected={timeLabel === t}
+                    size="xs"
+                    selectedSurface="#63D4A3"
+                    selectedBorder="#63D4A3"
+                    accentColor="#0B1A13"
+                    className="font-mono"
                     onClick={() => {
                       onHaptic();
                       setTimeLabel(t);
                     }}
-                    className={`rounded-full border px-2 py-0.5 font-mono text-[9px] font-semibold ${
-                      timeLabel === t
-                        ? 'border-[#63D4A3] bg-[#63D4A3] text-[#0B1A13]'
-                        : 'border-[#2E3532] bg-[#202523] text-[#D1D6D4]'
-                    }`}
-                  >
-                    {t}
-                  </button>
+                  />
                 ))}
               </div>
             </div>
@@ -914,21 +920,17 @@ const NewRoutineView: React.FC<NewRoutineViewProps> = ({
               <p className="text-[9.5px] font-semibold text-[#9CA3A0]">Days</p>
               <div className="mt-1 flex flex-wrap gap-1">
                 {ROUTINE_DAYS.map((d) => (
-                  <button
+                  <ExpressiveChip
                     key={d}
-                    type="button"
+                    label={d}
+                    selected={daysLabel === d}
+                    showCheckOnSelect
+                    size="xs"
                     onClick={() => {
                       onHaptic();
                       setDaysLabel(d);
                     }}
-                    className={`rounded-full border px-2 py-0.5 text-[9px] font-medium ${
-                      daysLabel === d
-                        ? 'border-[#63D4A3] bg-[#152920] text-[#63D4A3]'
-                        : 'border-[#2E3532] bg-[#202523] text-[#D1D6D4]'
-                    }`}
-                  >
-                    {d}
-                  </button>
+                  />
                 ))}
               </div>
             </div>
@@ -937,40 +939,40 @@ const NewRoutineView: React.FC<NewRoutineViewProps> = ({
               <p className="text-[9.5px] font-semibold text-[#9CA3A0]">Duration &amp; Focus</p>
               <div className="mt-1 grid grid-cols-5 gap-1">
                 {DURATIONS.map((m) => (
-                  <button
+                  <ExpressiveSegmentButton
                     key={m}
-                    type="button"
+                    selected={durationMin === m}
+                    selectedBg="#63D4A3"
+                    selectedColor="#0B1A13"
+                    selectedBorder="#63D4A3"
+                    idleBg="#202523"
+                    idleColor="#D1D6D4"
+                    idleBorder="#2E3532"
+                    selectedRadius="9px"
+                    idleRadius="999px"
+                    className="py-1 font-mono text-[9.5px]"
                     onClick={() => {
                       onHaptic();
                       setDurationMin(m);
                     }}
-                    className={`rounded-[9px] border py-1 font-mono text-[9.5px] font-semibold ${
-                      durationMin === m
-                        ? 'border-[#63D4A3] bg-[#63D4A3] text-[#0B1A13]'
-                        : 'border-[#2E3532] bg-[#202523] text-[#D1D6D4]'
-                    }`}
                   >
                     {`${m}m`}
-                  </button>
+                  </ExpressiveSegmentButton>
                 ))}
               </div>
               <div className="mt-1.5 flex flex-wrap gap-1">
                 {(['Restorative', 'Grounding', 'De-escalation', 'Focus'] as const).map((t) => (
-                  <button
+                  <ExpressiveChip
                     key={t}
-                    type="button"
+                    label={t}
+                    selected={tag === t}
+                    showCheckOnSelect
+                    size="xs"
                     onClick={() => {
                       onHaptic();
                       setTag(t);
                     }}
-                    className={`rounded-full border px-2 py-0.5 text-[9px] font-medium ${
-                      tag === t
-                        ? 'border-[#63D4A3] bg-[#152920] text-[#63D4A3]'
-                        : 'border-[#2E3532] bg-[#202523] text-[#D1D6D4]'
-                    }`}
-                  >
-                    {t}
-                  </button>
+                  />
                 ))}
               </div>
             </div>
@@ -1037,6 +1039,9 @@ const ActiveResetPlayer: React.FC<ActiveResetPlayerProps> = ({
   const [completed, setCompleted] = useState(false);
 
   const lastPhaseRef = useRef(-1);
+  const elapsedRef = useRef(0);
+  const phaseElapsedRef = useRef(0);
+  const phaseIdxRef = useRef(0);
   const currentPhase = protocol.phases[phaseIdx % protocol.phases.length];
 
   // Clean up voice speech on unmount, pause, mute, or completion
@@ -1093,31 +1098,33 @@ const ActiveResetPlayer: React.FC<ActiveResetPlayerProps> = ({
   useEffect(() => {
     if (!running || completed) return;
     const id = window.setInterval(() => {
-      setElapsedSec((prev) => {
-        const next = prev + 0.2;
-        if (next >= totalSeconds) {
-          setCompleted(true);
-          playConfirmChime(audioEnabled);
-          return totalSeconds;
-        }
-        return next;
-      });
+      const nextElapsed = elapsedRef.current + 0.2;
+      if (nextElapsed >= totalSeconds) {
+        elapsedRef.current = totalSeconds;
+        setElapsedSec(totalSeconds);
+        setCompleted(true);
+        playConfirmChime(audioEnabled);
+        return;
+      }
+      elapsedRef.current = nextElapsed;
+      setElapsedSec(nextElapsed);
 
       if (!protocol.interactiveTapAdvance) {
-        setPhaseElapsed((prev) => {
-          const next = prev + 0.2;
-          if (next >= currentPhase.durationSec) {
-            setPhaseIdx((p) => {
-              const nextIdx = (p + 1) % protocol.phases.length;
-              if (nextIdx === 0) {
-                setCycleCount((c) => c + 1);
-              }
-              return nextIdx;
-            });
-            return 0;
+        const activePhase = protocol.phases[phaseIdxRef.current % protocol.phases.length];
+        const nextPhaseElapsed = phaseElapsedRef.current + 0.2;
+        if (nextPhaseElapsed >= activePhase.durationSec) {
+          const nextIdx = (phaseIdxRef.current + 1) % protocol.phases.length;
+          phaseIdxRef.current = nextIdx;
+          phaseElapsedRef.current = 0;
+          setPhaseIdx(nextIdx);
+          setPhaseElapsed(0);
+          if (nextIdx === 0) {
+            setCycleCount((c) => c + 1);
           }
-          return next;
-        });
+        } else {
+          phaseElapsedRef.current = nextPhaseElapsed;
+          setPhaseElapsed(nextPhaseElapsed);
+        }
       }
     }, 200);
     return () => window.clearInterval(id);
@@ -1126,8 +1133,7 @@ const ActiveResetPlayer: React.FC<ActiveResetPlayerProps> = ({
     completed,
     totalSeconds,
     protocol.interactiveTapAdvance,
-    currentPhase.durationSec,
-    protocol.phases.length,
+    protocol.phases,
     audioEnabled,
   ]);
 
@@ -1170,39 +1176,43 @@ const ActiveResetPlayer: React.FC<ActiveResetPlayerProps> = ({
 
         <p className="mt-4 text-[11px] font-medium text-[#9CA3A0]">How does your body feel?</p>
         <div className="mt-2.5 flex w-full max-w-[244px] flex-col gap-2">
-          <button
-            type="button"
+          <ExpressiveButton
+            variant="filled"
+            size="md"
+            fullWidth
+            className="font-bold"
             onClick={() => {
               onHaptic();
               onFinish('calmer', Math.round(totalSeconds / 60), liveHr);
             }}
-            className="min-h-[40px] w-full rounded-full bg-[#63D4A3] text-[12.5px] font-bold text-[#0B1A13] active:scale-95"
           >
             Calmer
-          </button>
+          </ExpressiveButton>
           <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
+            <ExpressiveButton
+              variant="outlined"
+              size="sm"
+              fullWidth
               onClick={() => {
                 onHaptic();
                 onFinish('same', Math.round(totalSeconds / 60), liveHr);
               }}
-              className="min-h-[36px] rounded-full border border-[#2F3633] bg-[#181C1B] text-[11.5px] font-semibold text-[#F4F6F5] active:scale-95"
             >
               Same
-            </button>
-            <button
-              type="button"
+            </ExpressiveButton>
+            <ExpressiveButton
+              variant="blue"
+              size="sm"
+              fullWidth
               onClick={() => {
                 onHaptic();
                 setTotalSeconds((s) => s + 60);
                 setCompleted(false);
                 setRunning(true);
               }}
-              className="min-h-[36px] rounded-full border border-[#4B79A1] bg-[#18222B] text-[11.5px] font-semibold text-[#93BBE0] active:scale-95"
             >
               Extend +1m
-            </button>
+            </ExpressiveButton>
           </div>
         </div>
       </div>
@@ -1239,7 +1249,10 @@ const ActiveResetPlayer: React.FC<ActiveResetPlayerProps> = ({
           primeVoiceAudio();
           if (protocol.interactiveTapAdvance) {
             onHaptic();
-            setPhaseIdx((p) => (p + 1) % protocol.phases.length);
+            const nextIdx = (phaseIdxRef.current + 1) % protocol.phases.length;
+            phaseIdxRef.current = nextIdx;
+            phaseElapsedRef.current = 0;
+            setPhaseIdx(nextIdx);
             setPhaseElapsed(0);
           } else {
             onHaptic();
@@ -1297,48 +1310,53 @@ const ActiveResetPlayer: React.FC<ActiveResetPlayerProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            type="button"
+          <ExpressiveIconButton
+            variant="outlined"
+            size={36}
+            ariaLabel="Exit routine"
             onClick={() => {
               onHaptic();
               stopSpeech();
               onExit();
             }}
-            aria-label="Exit routine"
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-[#2F3633] bg-[#181C1B] text-[#D1D6D4] hover:text-white active:scale-90"
           >
             <ArrowLeft className="h-4 w-4" />
-          </button>
+          </ExpressiveIconButton>
 
-          <button
-            type="button"
+          <ExpressiveIconButton
+            variant="filled"
+            size={40}
+            toggled={running}
+            surfaceColor="#63D4A3"
+            accentColor="#0B1A13"
+            borderColor="transparent"
+            ariaLabel={running ? 'Pause routine' : 'Resume routine'}
             onClick={() => {
               primeVoiceAudio();
               onHaptic();
               setRunning((r) => !r);
             }}
-            aria-label={running ? 'Pause routine' : 'Resume routine'}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-[#63D4A3] text-[#0B1A13] active:scale-90"
           >
             {running ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 ml-0.5" />}
-          </button>
+          </ExpressiveIconButton>
 
-          <button
-            type="button"
+          <ExpressiveIconButton
+            variant="outlined"
+            size={36}
+            toggled={audioEnabled}
+            ariaLabel="Toggle voice and breath chimes"
             onClick={() => {
               primeVoiceAudio();
               onHaptic();
               onToggleAudio();
             }}
-            aria-label="Toggle voice and breath chimes"
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-[#2F3633] bg-[#181C1B] text-[#D1D6D4] hover:text-white active:scale-90"
           >
             {audioEnabled ? (
-              <Volume2 className="h-4 w-4 text-[#63D4A3]" />
+              <Volume2 className="h-4 w-4" />
             ) : (
               <VolumeX className="h-4 w-4" />
             )}
-          </button>
+          </ExpressiveIconButton>
         </div>
       </div>
     </div>

@@ -396,10 +396,7 @@ export default function App() {
         {!showcaseMode ? (
           <div className="flex items-center gap-3">
             <span className="text-base font-bold tracking-tight text-[#F5F4F2] whitespace-nowrap">
-              WELLBE+
-            </span>
-            <span className="hidden sm:inline text-xs text-[#A8A4A4]">
-              3.2 for Google Pixel Watch · Wear OS 5
+              WELLBE+ Watch
             </span>
           </div>
         ) : (
